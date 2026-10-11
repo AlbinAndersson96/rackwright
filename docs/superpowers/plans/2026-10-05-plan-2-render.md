@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust 1.99 (edition 2024), `wgpu` 30 (features `std`, `wgsl`, `webgpu`, `vulkan`; no WebGL), `glam` 0.34, `bytemuck` 1, `web-sys`/`wasm-bindgen` (wasm32 only), `pollster` (tests).
 
-**Spec:** `docs/superpowers/specs/2026-10-05-teststationview-mvp-design.md` (§4.2 is the renderer). Plan 1 (`docs/superpowers/plans/2026-10-05-plan-1-core.md`) is merged; its API is what this plan consumes.
+**Spec:** `docs/superpowers/specs/2026-10-05-rackwright-mvp-design.md` (§4.2 is the renderer). Plan 1 (`docs/superpowers/plans/2026-10-05-plan-1-core.md`) is merged; its API is what this plan consumes.
 
 This is plan 2 of 3. All code in this plan was compiled and its tests run (native and `wasm32-unknown-unknown` checks) in a scratch prototype before the plan was written. If a step's output differs from `Expected:`, suspect the environment first, for example a missing GPU driver or a different crate version resolved by Cargo.
 

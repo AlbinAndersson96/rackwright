@@ -1,4 +1,4 @@
-use tsv_render::text::{MAX_LABEL_PX, label_texture_size, mip_chain, premultiply};
+use rackwright_render::text::{MAX_LABEL_PX, label_texture_size, mip_chain, premultiply};
 
 #[test]
 fn label_textures_have_four_pixels_per_millimetre() {

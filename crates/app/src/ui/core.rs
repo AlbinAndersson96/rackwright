@@ -5,10 +5,10 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use leptos::prelude::*;
-use tsv_core::edit::ObjectId;
-use tsv_core::ids::RackId;
-use tsv_render::gpu::{FrameStatus, Renderer};
-use tsv_render::text::CanvasTextRasterizer;
+use rackwright_core::edit::ObjectId;
+use rackwright_core::ids::RackId;
+use rackwright_render::gpu::{FrameStatus, Renderer};
+use rackwright_render::text::CanvasTextRasterizer;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 

@@ -1,4 +1,4 @@
-# TestStationView
+# Rackwright
 
 A browser app for planning and documenting rack-mounted test stations in 3D. You build a
 station from racks, place measurement equipment in them, add named ports to the equipment, and
@@ -26,7 +26,7 @@ files.
   can't be read.
 
 The full behaviour is specified in
-[`docs/superpowers/specs/2026-10-05-teststationview-mvp-design.md`](docs/superpowers/specs/2026-10-05-teststationview-mvp-design.md).
+[`docs/superpowers/specs/2026-10-05-rackwright-mvp-design.md`](docs/superpowers/specs/2026-10-05-rackwright-mvp-design.md).
 
 ## Requirements
 
@@ -59,20 +59,20 @@ trunk build --release        # output in crates/app/dist/
 
 ```bash
 cargo test --workspace                                   # all tests, run natively
-cargo test -p tsv-core --test placement                  # one test file
-cargo test -p tsv-app --test interaction drag            # tests whose name contains "drag"
+cargo test -p rackwright-core --test placement                  # one test file
+cargo test -p rackwright-app --test interaction drag            # tests whose name contains "drag"
 cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings
-cargo clippy -p tsv-app -p tsv-render --target wasm32-unknown-unknown -- -D warnings
+cargo clippy -p rackwright-app -p rackwright-render --target wasm32-unknown-unknown -- -D warnings
 ```
 
 The workspace has three crates:
 
 | Crate | Path | What it contains |
 |---|---|---|
-| `tsv-core` | `crates/core` | Document model and every editing rule (placement and push, naming, validation), undo/redo, and the JSON file format. Pure Rust. |
-| `tsv-render` | `crates/render` | World layout, picking, camera, scene building and the wgpu renderer. |
-| `tsv-app` | `crates/app` | Session, interaction controller, storage and forms (pure Rust), plus the Leptos UI (browser only). |
+| `rackwright-core` | `crates/core` | Document model and every editing rule (placement and push, naming, validation), undo/redo, and the JSON file format. Pure Rust. |
+| `rackwright-render` | `crates/render` | World layout, picking, camera, scene building and the wgpu renderer. |
+| `rackwright-app` | `crates/app` | Session, interaction controller, storage and forms (pure Rust), plus the Leptos UI (browser only). |
 
 The design document and the three implementation plans that built the MVP are in
 `docs/superpowers/`.

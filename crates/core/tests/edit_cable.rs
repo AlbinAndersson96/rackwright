@@ -1,9 +1,9 @@
 mod common;
 
 use common::*;
-use tsv_core::edit::*;
-use tsv_core::ids::PortId;
-use tsv_core::model::{Document, Rgb};
+use rackwright_core::edit::*;
+use rackwright_core::ids::PortId;
+use rackwright_core::model::{Document, Rgb};
 
 /// Two racks: R1 holds DMM (HI, LO) and PSU (OUT); R2 holds SCOPE (CH1).
 fn station() -> Document {
@@ -174,7 +174,7 @@ fn cables_can_be_recoloured() {
     let plan = plan_set_cable_color(&d, d.cables[0].id, red).unwrap();
     assert_eq!(plan.document.cables[0].color, red);
     assert_eq!(
-        plan_set_cable_color(&d, tsv_core::ids::CableId::new(), red),
+        plan_set_cable_color(&d, rackwright_core::ids::CableId::new(), red),
         Err(Rejection::NotFound)
     );
 }
@@ -234,8 +234,8 @@ fn moving_ports_and_devices_keeps_cables() {
         &limits(),
         dmm,
         &PortSource::Existing(hi),
-        tsv_core::port_grid::Cell { row: 0, col: 4 },
-        tsv_core::port_grid::PushDir::Right,
+        rackwright_core::port_grid::Cell { row: 0, col: 4 },
+        rackwright_core::port_grid::PushDir::Right,
     )
     .unwrap()
     .document;
@@ -297,7 +297,7 @@ fn replugging_follows_the_cable_rules() {
     // `end` must be one of the cable's ends.
     assert_eq!(replug(&d, lo, out), Err(Rejection::NotFound));
     assert_eq!(
-        plan_replug(&d, tsv_core::ids::CableId::new(), out, hi),
+        plan_replug(&d, rackwright_core::ids::CableId::new(), out, hi),
         Err(Rejection::NotFound)
     );
 }

@@ -1,16 +1,16 @@
 mod common;
 
-use tsv_core::model::{Gender, PortKind};
+use rackwright_core::model::{Gender, PortKind};
 
 use common::*;
 use glam::Vec3;
-use tsv_core::edit::ObjectId;
-use tsv_core::ids::PortId;
-use tsv_core::model::{Document, Rgb};
-use tsv_core::port_grid::Cell;
-use tsv_render::layout::*;
-use tsv_render::pick::*;
-use tsv_render::scene::*;
+use rackwright_core::edit::ObjectId;
+use rackwright_core::ids::PortId;
+use rackwright_core::model::{Document, Rgb};
+use rackwright_core::port_grid::Cell;
+use rackwright_render::layout::*;
+use rackwright_render::pick::*;
+use rackwright_render::scene::*;
 
 /// R1: DMM (U10) with HI, LO; R2: PSU (U5) with OUT. Cable "Lead" joins HI and OUT.
 fn station() -> (Document, PortId, PortId, PortId) {
@@ -25,7 +25,7 @@ fn station() -> (Document, PortId, PortId, PortId) {
     (d, hi, lo, out)
 }
 
-fn input<'a>(d: &'a Document, l: &'a tsv_core::limits::Limits) -> SceneInput<'a> {
+fn input<'a>(d: &'a Document, l: &'a rackwright_core::limits::Limits) -> SceneInput<'a> {
     SceneInput {
         document: d,
         limits: l,

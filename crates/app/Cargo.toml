@@ -1,11 +1,11 @@
 [package]
-name = "tsv-app"
+name = "rackwright-app"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-tsv-core = { path = "../core" }
-tsv-render = { path = "../render" }
+rackwright-core = { path = "../core" }
+rackwright-render = { path = "../render" }
 glam = "0.34"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]

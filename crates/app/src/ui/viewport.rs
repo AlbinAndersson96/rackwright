@@ -3,7 +3,7 @@
 use glam::Vec2;
 use leptos::html;
 use leptos::prelude::*;
-use tsv_render::gpu::Renderer;
+use rackwright_render::gpu::Renderer;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
 
@@ -80,7 +80,7 @@ pub fn menu_delete(menu: Menu) {
     let sig = signals();
     sig.menu.set(None);
     if update(|s| s.request_delete(menu.target)) == DeleteOutcome::NeedsConfirmation
-        && let tsv_core::edit::ObjectId::Rack(rack) = menu.target
+        && let rackwright_core::edit::ObjectId::Rack(rack) = menu.target
     {
         let name = read(|s| {
             s.document()

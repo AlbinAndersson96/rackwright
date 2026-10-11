@@ -4,11 +4,11 @@
 //! plane is z = 0 and they extend towards -Z. U1 sits directly on top of the plinth.
 
 use glam::{Vec2, Vec3};
-use tsv_core::edit::ObjectId;
-use tsv_core::ids::PortId;
-use tsv_core::limits::Limits;
-use tsv_core::model::{Cable, Device, Document, Gender, PortKind, Rack};
-use tsv_core::port_grid::Cell;
+use rackwright_core::edit::ObjectId;
+use rackwright_core::ids::PortId;
+use rackwright_core::limits::Limits;
+use rackwright_core::model::{Cable, Device, Document, Gender, PortKind, Rack};
+use rackwright_core::port_grid::Cell;
 
 pub const U_MM: f32 = 44.45;
 pub const FRONT_WIDTH_MM: f32 = 482.6;
@@ -343,9 +343,9 @@ pub fn scene_bounds(doc: &Document) -> Aabb {
     let default_rack;
     let racks: Vec<(usize, &Rack)> = if doc.racks.is_empty() {
         default_rack = Rack {
-            id: tsv_core::ids::RackId::new(),
-            name: tsv_core::name::Name::parse("R", &Limits::default()).expect("valid"),
-            height_u: tsv_core::model::DEFAULT_RACK_HEIGHT_U,
+            id: rackwright_core::ids::RackId::new(),
+            name: rackwright_core::name::Name::parse("R", &Limits::default()).expect("valid"),
+            height_u: rackwright_core::model::DEFAULT_RACK_HEIGHT_U,
             devices: Vec::new(),
         };
         vec![(0, &default_rack)]

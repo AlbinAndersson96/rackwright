@@ -1,10 +1,10 @@
 [package]
-name = "tsv-render"
+name = "rackwright-render"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-tsv-core = { path = "../core" }
+rackwright-core = { path = "../core" }
 bytemuck = { version = "1", features = ["derive"] }
 glam = "0.34"
 wgpu = { version = "30", default-features = false, features = ["std", "wgsl", "webgpu", "vulkan"] }

@@ -1,5 +1,5 @@
 [package]
-name = "tsv-core"
+name = "rackwright-core"
 version.workspace = true
 edition.workspace = true
 

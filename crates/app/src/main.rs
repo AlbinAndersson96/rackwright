@@ -2,5 +2,5 @@
 
 fn main() {
     #[cfg(target_arch = "wasm32")]
-    tsv_app::ui::start();
+    rackwright_app::ui::start();
 }

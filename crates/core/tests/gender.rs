@@ -1,11 +1,11 @@
 mod common;
 
 use common::*;
-use tsv_core::edit::*;
-use tsv_core::file_format::{from_json, to_json};
-use tsv_core::model::{Document, Gender, PortKind};
-use tsv_core::name::ModelText;
-use tsv_core::port_grid::{Cell, PushDir};
+use rackwright_core::edit::*;
+use rackwright_core::file_format::{from_json, to_json};
+use rackwright_core::model::{Document, Gender, PortKind};
+use rackwright_core::name::ModelText;
+use rackwright_core::port_grid::{Cell, PushDir};
 
 #[test]
 fn genders_have_unique_keys_and_labels() {
@@ -19,7 +19,7 @@ fn genders_have_unique_keys_and_labels() {
     assert_eq!(Gender::from_key("x"), None);
 }
 
-fn one_port() -> (Document, tsv_core::ids::PortId) {
+fn one_port() -> (Document, rackwright_core::ids::PortId) {
     let p = port("CH1", 0, 0);
     let id = p.id;
     (
@@ -39,7 +39,7 @@ fn a_port_gender_can_be_set_and_new_ports_take_one() {
     assert_eq!(plan.document.port(id).unwrap().2.gender, Gender::Female);
     assert_eq!(plan.subject, Some(ObjectId::Port(id)));
     assert_eq!(
-        plan_set_port_gender(&d, tsv_core::ids::PortId::new(), Gender::Male),
+        plan_set_port_gender(&d, rackwright_core::ids::PortId::new(), Gender::Male),
         Err(Rejection::NotFound)
     );
 

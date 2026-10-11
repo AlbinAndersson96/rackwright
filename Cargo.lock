@@ -1409,6 +1409,45 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
+name = "rackwright-app"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "glam",
+ "js-sys",
+ "leptos",
+ "pollster",
+ "rackwright-core",
+ "rackwright-render",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
+name = "rackwright-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
+name = "rackwright-render"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "glam",
+ "pollster",
+ "rackwright-core",
+ "wasm-bindgen",
+ "web-sys",
+ "wgpu",
+]
+
+[[package]]
 name = "raw-window-handle"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1948,45 +1987,6 @@ name = "toml_writer"
 version = "1.1.2+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d56353a2a665ad0f41a421187180aab746c8c325620617ad883a99a1cbe66d2"
-
-[[package]]
-name = "tsv-app"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "glam",
- "js-sys",
- "leptos",
- "pollster",
- "tsv-core",
- "tsv-render",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
-name = "tsv-core"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "uuid",
-]
-
-[[package]]
-name = "tsv-render"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "glam",
- "pollster",
- "tsv-core",
- "wasm-bindgen",
- "web-sys",
- "wgpu",
-]
 
 [[package]]
 name = "typed-builder"

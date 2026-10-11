@@ -1,12 +1,12 @@
 mod common;
 
-use tsv_core::model::{Gender, PortKind};
+use rackwright_core::model::{Gender, PortKind};
 
 use common::*;
 use glam::{Vec2, Vec3};
-use tsv_core::model::Document;
-use tsv_core::port_grid::Cell;
-use tsv_render::layout::*;
+use rackwright_core::model::Document;
+use rackwright_core::port_grid::Cell;
+use rackwright_render::layout::*;
 
 #[test]
 fn racks_stand_side_by_side_with_a_gap() {
@@ -117,7 +117,7 @@ fn units_box_matches_a_device_at_the_same_place() {
 
 #[test]
 fn object_bounds_finds_racks_devices_and_ports() {
-    use tsv_core::edit::ObjectId;
+    use rackwright_core::edit::ObjectId;
     let p = port("P", 0, 1);
     let pid = p.id;
     let dev = with_ports(device("D", 4, 2), vec![p]);
@@ -147,7 +147,11 @@ fn object_bounds_finds_racks_devices_and_ports() {
         )
     );
     assert_eq!(
-        object_bounds(&d, &l, ObjectId::Device(tsv_core::ids::DeviceId::new())),
+        object_bounds(
+            &d,
+            &l,
+            ObjectId::Device(rackwright_core::ids::DeviceId::new())
+        ),
         None
     );
 }

@@ -41,11 +41,11 @@ fn App() -> impl IntoView {
         tree_drag: RwSignal::new(None),
     };
     leptos::task::spawn_local(async move {
-        if !tsv_render::gpu::webgpu_available().await {
+        if !rackwright_render::gpu::webgpu_available().await {
             status.set(Status::NoWebGpu);
             return;
         }
-        let limits = tsv_core::limits::Limits::default();
+        let limits = rackwright_core::limits::Limits::default();
         let stored = LocalStorageStore.load().await;
         let (document, problem) = match interpret_stored(stored, &limits) {
             Startup::Fresh(d) | Startup::Restored(d) => (d, None),
@@ -68,7 +68,7 @@ fn App() -> impl IntoView {
         Status::NoWebGpu => view! {
             <div class="splash">
                 <h1>"WebGPU is required"</h1>
-                <p>"TestStationView needs a browser with WebGPU, such as a current Chrome, Edge or Firefox on Windows."</p>
+                <p>"Rackwright needs a browser with WebGPU, such as a current Chrome, Edge or Firefox on Windows."</p>
             </div>
         }
             .into_any(),

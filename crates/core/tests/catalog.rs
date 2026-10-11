@@ -1,12 +1,12 @@
 mod common;
 
 use common::*;
-use tsv_core::edit::*;
-use tsv_core::file_format::{LoadError, from_json, to_json};
-use tsv_core::ids::{DeviceId, ModelId};
-use tsv_core::model::{CatalogEntry, DeviceKind, Document, PortKind, Rgb};
-use tsv_core::name::ModelText;
-use tsv_core::validate::{ValidationError, validate};
+use rackwright_core::edit::*;
+use rackwright_core::file_format::{LoadError, from_json, to_json};
+use rackwright_core::ids::{DeviceId, ModelId};
+use rackwright_core::model::{CatalogEntry, DeviceKind, Document, PortKind, Rgb};
+use rackwright_core::name::ModelText;
+use rackwright_core::validate::{ValidationError, validate};
 
 fn text(s: &str) -> ModelText {
     ModelText::parse(s).unwrap()
@@ -119,7 +119,7 @@ fn placing_a_model_copies_its_contents_into_a_new_linked_device() {
     assert_eq!((placed.bottom_u, placed.height_u), (20, 2));
     assert_eq!(placed.color, original.color);
     assert_eq!(placed.name.as_str(), "34465A");
-    let cells = |dev: &tsv_core::model::Device| {
+    let cells = |dev: &rackwright_core::model::Device| {
         dev.ports
             .iter()
             .map(|p| (p.name.to_string(), p.row, p.col, p.kind))

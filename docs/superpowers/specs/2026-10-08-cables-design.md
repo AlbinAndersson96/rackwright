@@ -3,7 +3,7 @@
 Date: 2026-10-08
 Status: Accepted (decisions taken with the user in the design discussion)
 
-This extends the MVP design (`2026-10-05-teststationview-mvp-design.md`). Everything not
+This extends the MVP design (`2026-10-05-rackwright-mvp-design.md`). Everything not
 mentioned here behaves as described there. It answers the open questions in
 `docs/future-work.md` § "Cables between ports".
 

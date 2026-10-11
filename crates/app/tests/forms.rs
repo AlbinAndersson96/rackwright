@@ -1,7 +1,7 @@
-use tsv_core::ids::{DeviceId, PortId, RackId};
-use tsv_core::limits::Limits;
-use tsv_core::model::{Device, DeviceKind, Document, Port, PortKind, Rack, Rgb};
-use tsv_core::name::{DocumentName, Name};
+use rackwright_core::ids::{DeviceId, PortId, RackId};
+use rackwright_core::limits::Limits;
+use rackwright_core::model::{Device, DeviceKind, Document, Port, PortKind, Rack, Rgb};
+use rackwright_core::name::{DocumentName, Name};
 
 fn limits() -> Limits {
     Limits::default()
@@ -56,7 +56,7 @@ fn doc(racks: Vec<Rack>) -> Document {
         catalog: Vec::new(),
     }
 }
-use tsv_app::forms::*;
+use rackwright_app::forms::*;
 
 #[test]
 fn names_are_normalised_or_explained() {
@@ -118,7 +118,7 @@ fn document_names_and_export_file_names() {
 
 #[test]
 fn colours_round_trip_through_the_colour_input() {
-    let c = tsv_core::model::Rgb { r: 1, g: 2, b: 255 };
+    let c = rackwright_core::model::Rgb { r: 1, g: 2, b: 255 };
     assert_eq!(color_to_input(c), "#0102ff");
     assert_eq!(color_from_input("#0102ff"), Some(c));
     assert_eq!(color_from_input("blue"), None);

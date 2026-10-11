@@ -30,7 +30,7 @@ jobs:
         run: |
           rustup target add wasm32-unknown-unknown
       - name: Run trunk build
-        run: cd crates/app && trunk build --release --public-url /test-station-view/
+        run: cd crates/app && trunk build --release --public-url /rackwright/
 
       - name: Setup Pages
         uses: actions/configure-pages@v3

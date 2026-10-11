@@ -1,9 +1,9 @@
 //! Properties panel and the new-device / new-port forms (spec §4.3).
 
 use leptos::prelude::*;
-use tsv_core::edit::ObjectId;
-use tsv_core::ids::{CableId, DeviceId, ModelId, PortId, RackId};
-use tsv_core::model::{DeviceKind, Document, Gender, PortKind};
+use rackwright_core::edit::ObjectId;
+use rackwright_core::ids::{CableId, DeviceId, ModelId, PortId, RackId};
+use rackwright_core::model::{DeviceKind, Document, Gender, PortKind};
 
 use crate::forms::{
     color_from_input, color_to_input, new_device_input, new_port_input, parse_document_name,

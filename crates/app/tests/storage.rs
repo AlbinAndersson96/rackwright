@@ -3,10 +3,10 @@ mod common;
 use std::cell::RefCell;
 
 use common::*;
-use tsv_app::session::{Session, StartupProblem};
-use tsv_app::storage::*;
-use tsv_core::file_format::to_json;
-use tsv_core::model::Document;
+use rackwright_app::session::{Session, StartupProblem};
+use rackwright_app::storage::*;
+use rackwright_core::file_format::to_json;
+use rackwright_core::model::Document;
 
 #[test]
 fn nothing_stored_starts_with_the_example() {
@@ -105,4 +105,36 @@ fn autosave_never_overwrites_unreadable_stored_data() {
     *store.data.borrow_mut() = Some("x".into());
     pollster::block_on(autosave(&session, &store));
     assert_eq!(store.data.borrow().as_deref(), Some("x"));
+}
+
+#[test]
+fn stored_under_the_current_key_is_loaded_as_is() {
+    let kv = MemoryKeyValue::default();
+    kv.set(STORAGE_KEY, "new").unwrap();
+    kv.set(LEGACY_STORAGE_KEY, "old").unwrap();
+    assert_eq!(load_migrating(&kv), Ok(Some("new".into())));
+    assert_eq!(kv.get(LEGACY_STORAGE_KEY), Ok(Some("old".into())));
+}
+
+#[test]
+fn legacy_document_moves_to_the_current_key() {
+    let kv = MemoryKeyValue::default();
+    kv.set(LEGACY_STORAGE_KEY, "old").unwrap();
+    assert_eq!(load_migrating(&kv), Ok(Some("old".into())));
+    assert_eq!(kv.get(STORAGE_KEY), Ok(Some("old".into())));
+    assert_eq!(kv.get(LEGACY_STORAGE_KEY), Ok(None));
+}
+
+#[test]
+fn legacy_document_is_kept_when_it_cannot_be_copied() {
+    let kv = MemoryKeyValue::default();
+    kv.set(LEGACY_STORAGE_KEY, "old").unwrap();
+    kv.fail_writes.set(true);
+    assert_eq!(load_migrating(&kv), Ok(Some("old".into())));
+    assert_eq!(kv.get(LEGACY_STORAGE_KEY), Ok(Some("old".into())));
+}
+
+#[test]
+fn nothing_under_either_key_loads_nothing() {
+    assert_eq!(load_migrating(&MemoryKeyValue::default()), Ok(None));
 }

@@ -1,10 +1,10 @@
 mod common;
 
 use common::*;
-use tsv_core::edit::*;
-use tsv_core::file_format::{LoadError, from_json, to_json};
-use tsv_core::model::{Document, PortKind};
-use tsv_core::port_grid::{Cell, PushDir};
+use rackwright_core::edit::*;
+use rackwright_core::file_format::{LoadError, from_json, to_json};
+use rackwright_core::model::{Document, PortKind};
+use rackwright_core::port_grid::{Cell, PushDir};
 
 #[test]
 fn every_kind_has_a_unique_key_and_label_that_round_trip() {
@@ -73,7 +73,7 @@ fn the_type_of_a_port_can_be_changed_even_when_its_cable_then_mismatches() {
             .is_some()
     );
     assert_eq!(
-        plan_set_port_kind(&d, tsv_core::ids::PortId::new(), PortKind::Sma),
+        plan_set_port_kind(&d, rackwright_core::ids::PortId::new(), PortKind::Sma),
         Err(Rejection::NotFound)
     );
 }

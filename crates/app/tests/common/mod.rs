@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 
 use glam::{Vec2, Vec3};
-use tsv_app::session::Session;
-use tsv_core::ids::{CableId, DeviceId, PortId, RackId};
-use tsv_core::limits::Limits;
-use tsv_core::model::{Cable, Device, DeviceKind, Document, Port, PortKind, Rack, Rgb};
-use tsv_core::name::{DocumentName, Name};
+use rackwright_app::session::Session;
+use rackwright_core::ids::{CableId, DeviceId, PortId, RackId};
+use rackwright_core::limits::Limits;
+use rackwright_core::model::{Cable, Device, DeviceKind, Document, Port, PortKind, Rack, Rgb};
+use rackwright_core::name::{DocumentName, Name};
 
 pub const VIEWPORT: Vec2 = Vec2::new(800.0, 600.0);
 

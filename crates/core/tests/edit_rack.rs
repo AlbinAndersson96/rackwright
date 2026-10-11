@@ -1,10 +1,10 @@
 mod common;
 
 use common::*;
-use tsv_core::edit::*;
-use tsv_core::ids::RackId;
-use tsv_core::model::Document;
-use tsv_core::name::DocumentName;
+use rackwright_core::edit::*;
+use rackwright_core::ids::RackId;
+use rackwright_core::model::Document;
+use rackwright_core::name::DocumentName;
 
 #[test]
 fn add_rack_appends_named_rack_with_default_height() {

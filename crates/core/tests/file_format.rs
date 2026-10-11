@@ -1,9 +1,9 @@
 mod common;
 
 use common::*;
-use tsv_core::file_format::{LoadError, from_json, to_json};
-use tsv_core::model::{DeviceKind, Document, PortKind, Rgb};
-use tsv_core::validate::ValidationError;
+use rackwright_core::file_format::{LoadError, from_json, to_json};
+use rackwright_core::model::{DeviceKind, Document, PortKind, Rgb};
+use rackwright_core::validate::ValidationError;
 
 fn sample() -> Document {
     let mut dmm = with_ports(
@@ -28,7 +28,7 @@ fn sample() -> Document {
         rack("Rack2", 24, vec![]),
     ]);
     d.cables = vec![lead];
-    d.name = tsv_core::name::DocumentName::parse("Lab 3 Station").unwrap();
+    d.name = rackwright_core::name::DocumentName::parse("Lab 3 Station").unwrap();
     d
 }
 
@@ -68,7 +68,7 @@ fn version_2_files_need_a_cable_list() {
 #[test]
 fn cables_with_unknown_ends_are_rejected() {
     let mut d = sample();
-    d.cables[0].b = tsv_core::ids::PortId::new();
+    d.cables[0].b = rackwright_core::ids::PortId::new();
     let err = from_json(&to_json(&d), &limits()).unwrap_err();
     assert_eq!(
         err,

@@ -1,9 +1,9 @@
 mod common;
 
 use common::*;
-use tsv_core::edit::{plan_add_rack, plan_new_document};
-use tsv_core::editor::Editor;
-use tsv_core::model::Document;
+use rackwright_core::edit::{plan_add_rack, plan_new_document};
+use rackwright_core::editor::Editor;
+use rackwright_core::model::Document;
 
 fn add_rack(editor: &mut Editor) {
     let plan = plan_add_rack(editor.document(), &limits());

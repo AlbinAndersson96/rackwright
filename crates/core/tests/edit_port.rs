@@ -1,10 +1,10 @@
 mod common;
 
 use common::*;
-use tsv_core::edit::*;
-use tsv_core::ids::{DeviceId, PortId};
-use tsv_core::model::{Device, Document};
-use tsv_core::port_grid::{Cell, PushDir};
+use rackwright_core::edit::*;
+use rackwright_core::ids::{DeviceId, PortId};
+use rackwright_core::model::{Device, Document};
+use rackwright_core::port_grid::{Cell, PushDir};
 
 fn drop_port(
     d: &Document,
@@ -20,7 +20,7 @@ fn drop_port(
 fn new(n: &str) -> PortSource {
     PortSource::New {
         name: name(n),
-        kind: tsv_core::model::PortKind::Unspecified,
+        kind: rackwright_core::model::PortKind::Unspecified,
         gender: Default::default(),
     }
 }

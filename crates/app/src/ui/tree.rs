@@ -1,7 +1,7 @@
 //! The tree: Document → Rack → Device → Port (spec §4.3 "Tree"), then the cables.
 
 use leptos::prelude::*;
-use tsv_core::edit::ObjectId;
+use rackwright_core::edit::ObjectId;
 
 use crate::ui::core::{Menu, MenuOrigin, RenameTarget, now_s, read, signals, update};
 
@@ -73,11 +73,13 @@ fn rows(collapsed: &[ObjectId]) -> Vec<Row> {
                     target: RenameTarget::Object(device_id),
                     label: device.name.to_string(),
                     detail: match device.kind {
-                        tsv_core::model::DeviceKind::Model(m) => doc.model(m).map_or_else(
+                        rackwright_core::model::DeviceKind::Model(m) => doc.model(m).map_or_else(
                             || format!("U{}", device.bottom_u),
                             |e| format!("U{} · {}", device.bottom_u, e.model),
                         ),
-                        tsv_core::model::DeviceKind::AdHoc => format!("U{}", device.bottom_u),
+                        rackwright_core::model::DeviceKind::AdHoc => {
+                            format!("U{}", device.bottom_u)
+                        }
                     },
                     depth: 2,
                     rack_index: None,
@@ -110,8 +112,8 @@ fn rows(collapsed: &[ObjectId]) -> Vec<Row> {
 }
 
 /// "BNC male", "BNC", "Female" or nothing: a port's type and gender, unspecified parts left out.
-fn port_description(port: &tsv_core::model::Port) -> Option<String> {
-    use tsv_core::model::{Gender, PortKind};
+fn port_description(port: &rackwright_core::model::Port) -> Option<String> {
+    use rackwright_core::model::{Gender, PortKind};
     let kind = (port.kind != PortKind::Unspecified).then(|| port.kind.label().to_string());
     let gender = match port.gender {
         Gender::Unspecified => None,

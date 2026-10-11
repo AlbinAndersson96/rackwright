@@ -3,10 +3,10 @@ mod common;
 use std::collections::HashSet;
 
 use common::*;
-use tsv_core::example::example_document;
-use tsv_core::file_format::{from_json, to_json};
-use tsv_core::model::{DeviceKind, Gender, PortKind};
-use tsv_core::validate::validate;
+use rackwright_core::example::example_document;
+use rackwright_core::file_format::{from_json, to_json};
+use rackwright_core::model::{DeviceKind, Gender, PortKind};
+use rackwright_core::validate::validate;
 
 #[test]
 fn the_example_is_valid_and_survives_a_file_round_trip() {

@@ -2,8 +2,8 @@ mod common;
 
 use common::assert_close;
 use glam::{Vec2, Vec3};
-use tsv_render::camera::*;
-use tsv_render::layout::{Aabb, FaceRect};
+use rackwright_render::camera::*;
+use rackwright_render::layout::{Aabb, FaceRect};
 
 fn front(distance: f32) -> OrbitCamera {
     OrbitCamera {
@@ -149,11 +149,11 @@ fn tween_turns_the_short_way_round() {
 
 #[test]
 fn largest_document_fits_the_front_view() {
-    use tsv_core::ids::RackId;
-    use tsv_core::model::{Document, Rack};
-    use tsv_core::name::{DocumentName, Name};
-    use tsv_render::layout::scene_bounds;
-    let limits = tsv_core::limits::Limits::default();
+    use rackwright_core::ids::RackId;
+    use rackwright_core::model::{Document, Rack};
+    use rackwright_core::name::{DocumentName, Name};
+    use rackwright_render::layout::scene_bounds;
+    let limits = rackwright_core::limits::Limits::default();
     let racks = (1..=5)
         .map(|i| Rack {
             id: RackId::new(),

@@ -2,7 +2,7 @@
 //! drag preview and status (spec §3.6, §4.3, §5). The UI calls these methods and redraws.
 
 use glam::{Vec2, Vec3};
-use tsv_core::edit::{
+use rackwright_core::edit::{
     ObjectId, Plan, Rejection, plan_add_rack, plan_move_rack, plan_new_document, plan_remove_cable,
     plan_remove_device, plan_remove_model, plan_remove_port, plan_remove_rack, plan_rename_cable,
     plan_rename_device, plan_rename_document, plan_rename_model, plan_rename_port,
@@ -10,16 +10,18 @@ use tsv_core::edit::{
     plan_set_device_height, plan_set_port_gender, plan_set_port_kind, plan_set_rack_height,
     plan_update_model,
 };
-use tsv_core::editor::Editor;
-use tsv_core::file_format::{from_json, to_json};
-use tsv_core::ids::{CableId, DeviceId, ModelId, PortId, RackId};
-use tsv_core::limits::Limits;
-use tsv_core::model::{Document, Gender, PortKind, Rgb};
-use tsv_render::camera::OrbitCamera;
-use tsv_render::layout::{object_bounds, scene_bounds};
-use tsv_render::pick::Ray;
-use tsv_render::scene::{CablePreview, Ghost, Scene, SceneInput, animation_targets, build_scene};
-use tsv_render::view::ViewState;
+use rackwright_core::editor::Editor;
+use rackwright_core::file_format::{from_json, to_json};
+use rackwright_core::ids::{CableId, DeviceId, ModelId, PortId, RackId};
+use rackwright_core::limits::Limits;
+use rackwright_core::model::{Document, Gender, PortKind, Rgb};
+use rackwright_render::camera::OrbitCamera;
+use rackwright_render::layout::{object_bounds, scene_bounds};
+use rackwright_render::pick::Ray;
+use rackwright_render::scene::{
+    CablePreview, Ghost, Scene, SceneInput, animation_targets, build_scene,
+};
+use rackwright_render::view::ViewState;
 
 use crate::forms::{
     capitalise, export_file_name, parse_document_name, parse_height, parse_model_text, parse_name,
@@ -132,7 +134,7 @@ impl Session {
 
     /// The pick ray through a canvas position in CSS pixels.
     pub fn ray_at(&self, pos: Vec2) -> Ray {
-        let ndc = tsv_render::camera::pixel_to_ndc(pos, self.viewport);
+        let ndc = rackwright_render::camera::pixel_to_ndc(pos, self.viewport);
         self.view.camera().ray(ndc, self.aspect())
     }
 
@@ -346,7 +348,7 @@ impl Session {
     /// Replaces the document with the example station (undoable); called after confirmation.
     pub fn load_example(&mut self, now_s: f64) {
         let plan = Plan {
-            document: tsv_core::example::example_document(&self.limits),
+            document: rackwright_core::example::example_document(&self.limits),
             subject: None,
         };
         self.selection = None;

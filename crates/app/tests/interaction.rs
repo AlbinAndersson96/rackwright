@@ -1,15 +1,15 @@
 mod common;
 
-use tsv_core::model::{Gender, PortKind};
+use rackwright_core::model::{Gender, PortKind};
 
 use common::*;
 use glam::{Vec2, Vec3};
-use tsv_app::interaction::{Button, DragSource};
-use tsv_app::session::Session;
-use tsv_core::edit::ObjectId;
-use tsv_core::model::Document;
-use tsv_core::port_grid::Cell;
-use tsv_render::layout::{
+use rackwright_app::interaction::{Button, DragSource};
+use rackwright_app::session::Session;
+use rackwright_core::edit::ObjectId;
+use rackwright_core::model::Document;
+use rackwright_core::port_grid::Cell;
+use rackwright_render::layout::{
     RACK_WIDTH_MM, U_MM, device_face, port_cell_rect, port_marker_box, rack_left_x, u_bottom_y,
 };
 
@@ -375,7 +375,8 @@ fn drops_outside_the_canvas_never_commit() {
         "rack centre is off-canvas: {off_canvas}"
     );
     assert!(
-        tsv_render::pick::device_drop_target(s.document(), &s.ray_at(off_canvas), 0).is_some(),
+        rackwright_render::pick::device_drop_target(s.document(), &s.ray_at(off_canvas), 0)
+            .is_some(),
         "the ray there still hits the rack"
     );
     let before = s.document().clone();

@@ -2,12 +2,15 @@ mod common;
 
 use common::*;
 use glam::Vec3;
-use tsv_core::edit::ObjectId;
-use tsv_core::model::Rgb;
-use tsv_render::layout::*;
-use tsv_render::scene::*;
+use rackwright_core::edit::ObjectId;
+use rackwright_core::model::Rgb;
+use rackwright_render::layout::*;
+use rackwright_render::scene::*;
 
-fn input<'a>(d: &'a tsv_core::model::Document, l: &'a tsv_core::limits::Limits) -> SceneInput<'a> {
+fn input<'a>(
+    d: &'a rackwright_core::model::Document,
+    l: &'a rackwright_core::limits::Limits,
+) -> SceneInput<'a> {
     SceneInput {
         document: d,
         limits: l,
@@ -150,7 +153,7 @@ fn ghost_is_translucent_and_red_when_invalid() {
 
 #[test]
 fn motion_eases_towards_new_positions() {
-    let id = ObjectId::Device(tsv_core::ids::DeviceId::new());
+    let id = ObjectId::Device(rackwright_core::ids::DeviceId::new());
     let mut m = Motion::default();
     assert!(
         !m.update(&[(id, Vec3::ZERO)], 0.016),
@@ -180,7 +183,7 @@ fn moving_devices_are_drawn_at_their_displayed_position() {
 
 #[test]
 fn motion_still_eases_after_an_idle_period() {
-    let id = ObjectId::Device(tsv_core::ids::DeviceId::new());
+    let id = ObjectId::Device(rackwright_core::ids::DeviceId::new());
     let mut m = Motion::default();
     m.update(&[(id, Vec3::ZERO)], 0.016);
     assert!(

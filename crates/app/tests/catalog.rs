@@ -2,10 +2,10 @@ mod common;
 
 use common::*;
 use glam::Vec3;
-use tsv_app::interaction::DragSource;
-use tsv_core::edit::ObjectId;
-use tsv_core::model::{DeviceKind, Rgb};
-use tsv_render::layout::{RACK_WIDTH_MM, U_MM, rack_left_x, u_bottom_y};
+use rackwright_app::interaction::DragSource;
+use rackwright_core::edit::ObjectId;
+use rackwright_core::model::{DeviceKind, Rgb};
+use rackwright_render::layout::{RACK_WIDTH_MM, U_MM, rack_left_x, u_bottom_y};
 
 /// A point on rack 0's front plane at the middle of unit `u`.
 fn unit_point(u: u32) -> Vec3 {
@@ -13,7 +13,7 @@ fn unit_point(u: u32) -> Vec3 {
     Vec3::new(x, u_bottom_y(u) + U_MM / 2.0, 0.0)
 }
 
-fn station() -> tsv_app::session::Session {
+fn station() -> rackwright_app::session::Session {
     let mut dmm = with_ports(device("DMM", 10, 2), vec![port("HI", 0, 0)]);
     dmm.color = Rgb { r: 200, g: 0, b: 0 };
     session(doc(vec![rack("R1", 42, vec![dmm])]))

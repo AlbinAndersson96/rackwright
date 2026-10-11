@@ -1,5 +1,5 @@
-use tsv_core::limits::Limits;
-use tsv_core::name::{DocumentName, DocumentNameError, Name, NameError, auto_rename};
+use rackwright_core::limits::Limits;
+use rackwright_core::name::{DocumentName, DocumentNameError, Name, NameError, auto_rename};
 
 fn limits() -> Limits {
     Limits::default()

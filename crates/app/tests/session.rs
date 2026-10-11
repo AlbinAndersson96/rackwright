@@ -1,10 +1,10 @@
 mod common;
 
 use common::*;
-use tsv_app::session::{DeleteOutcome, Session};
-use tsv_core::edit::ObjectId;
-use tsv_core::file_format::to_json;
-use tsv_core::model::{Document, Rgb};
+use rackwright_app::session::{DeleteOutcome, Session};
+use rackwright_core::edit::ObjectId;
+use rackwright_core::file_format::to_json;
+use rackwright_core::model::{Document, Rgb};
 
 fn names(s: &Session) -> Vec<String> {
     s.document()
@@ -199,7 +199,7 @@ fn editing_an_object_that_no_longer_exists_is_an_error_not_a_panic() {
 
 #[test]
 fn a_port_type_change_is_one_undo_step() {
-    use tsv_core::model::PortKind;
+    use rackwright_core::model::PortKind;
     let p = port("CH1", 0, 0);
     let pid = p.id;
     let mut s = session(doc(vec![rack(
@@ -219,7 +219,7 @@ fn a_port_type_change_is_one_undo_step() {
 
 #[test]
 fn a_port_gender_change_is_one_undo_step() {
-    use tsv_core::model::Gender;
+    use rackwright_core::model::Gender;
     let p = port("CH1", 0, 0);
     let pid = p.id;
     let mut s = session(doc(vec![rack(
@@ -251,7 +251,7 @@ fn the_example_can_be_loaded_and_undone() {
 
 #[test]
 fn a_new_document_is_still_empty() {
-    let mut s = session(tsv_core::example::example_document(&limits()));
+    let mut s = session(rackwright_core::example::example_document(&limits()));
     s.new_document(0.0);
     let d = s.document();
     assert_eq!(d.name.as_str(), "Station1");

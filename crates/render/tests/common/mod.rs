@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
-use tsv_core::ids::{CableId, DeviceId, PortId, RackId};
-use tsv_core::limits::Limits;
-use tsv_core::model::{Cable, Device, DeviceKind, Document, Port, PortKind, Rack, Rgb};
-use tsv_core::name::{DocumentName, Name};
+use rackwright_core::ids::{CableId, DeviceId, PortId, RackId};
+use rackwright_core::limits::Limits;
+use rackwright_core::model::{Cable, Device, DeviceKind, Document, Port, PortKind, Rack, Rgb};
+use rackwright_core::name::{DocumentName, Name};
 
 pub fn limits() -> Limits {
     Limits::default()

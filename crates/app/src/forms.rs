@@ -1,10 +1,10 @@
 //! Parsing and validating what the user types (spec §4.3 "Properties panel", "New … form").
 //! Errors are short sentences shown inline next to the field.
 
-use tsv_core::ids::DeviceId;
-use tsv_core::limits::Limits;
-use tsv_core::model::{Document, Rgb};
-use tsv_core::name::{DocumentName, ModelText, Name};
+use rackwright_core::ids::DeviceId;
+use rackwright_core::limits::Limits;
+use rackwright_core::model::{Document, Rgb};
+use rackwright_core::name::{DocumentName, ModelText, Name};
 
 pub fn parse_name(text: &str, limits: &Limits) -> Result<Name, String> {
     Name::parse(text, limits).map_err(|e| capitalise(&e.to_string()))

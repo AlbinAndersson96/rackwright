@@ -2,14 +2,14 @@ mod common;
 
 use common::*;
 use glam::Vec3;
-use tsv_core::edit::ObjectId;
-use tsv_core::model::{Document, Gender, PortKind};
-use tsv_core::port_grid::Cell;
-use tsv_render::layout::*;
-use tsv_render::pick::*;
-use tsv_render::scene::*;
+use rackwright_core::edit::ObjectId;
+use rackwright_core::model::{Document, Gender, PortKind};
+use rackwright_core::port_grid::Cell;
+use rackwright_render::layout::*;
+use rackwright_render::pick::*;
+use rackwright_render::scene::*;
 
-fn input<'a>(d: &'a Document, l: &'a tsv_core::limits::Limits) -> SceneInput<'a> {
+fn input<'a>(d: &'a Document, l: &'a rackwright_core::limits::Limits) -> SceneInput<'a> {
     SceneInput {
         document: d,
         limits: l,
@@ -106,7 +106,7 @@ fn other_markers_are_boxes_in_their_colour_or_the_device_ink() {
         assert!(scene.tubes.is_empty());
         let drawn = scene.opaque.iter().find(|b| b.aabb == marker).unwrap();
         let ink = contrast_text(d.racks[0].devices[0].color);
-        let ink = tsv_core::model::Rgb {
+        let ink = rackwright_core::model::Rgb {
             r: ink[0],
             g: ink[1],
             b: ink[2],

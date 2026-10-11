@@ -1,11 +1,11 @@
 //! Pixel tests on a real (possibly software) GPU adapter. Skipped when none is available.
 
 use glam::{Vec2, Vec3};
-use tsv_render::camera::{FOV_Y, MAX_DISTANCE_MM, OrbitCamera};
-use tsv_render::gpu::{FrameStatus, Renderer};
-use tsv_render::layout::{Aabb, FaceRect, LABEL_OFFSET_MM};
-use tsv_render::scene::{BACKGROUND, BoxInstance, Floor, Label, Scene, TubeInstance};
-use tsv_render::text::TextRasterizer;
+use rackwright_render::camera::{FOV_Y, MAX_DISTANCE_MM, OrbitCamera};
+use rackwright_render::gpu::{FrameStatus, Renderer};
+use rackwright_render::layout::{Aabb, FaceRect, LABEL_OFFSET_MM};
+use rackwright_render::scene::{BACKGROUND, BoxInstance, Floor, Label, Scene, TubeInstance};
+use rackwright_render::text::TextRasterizer;
 
 const SIZE: u32 = 64;
 

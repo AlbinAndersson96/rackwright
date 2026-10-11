@@ -4,17 +4,21 @@
 //! trash zone (the UI knows where that element is).
 
 use glam::{Vec2, Vec3};
-use tsv_core::edit::{
+use rackwright_core::edit::{
     DeviceSource, ObjectId, Plan, PortSource, plan_connect, plan_device_drop, plan_port_drop,
     plan_remove_cable, plan_remove_device, plan_remove_port, plan_replug,
 };
-use tsv_core::ids::{CableId, DeviceId, ModelId, PortId};
-use tsv_core::model::{Gender, PortKind, Rgb};
-use tsv_core::name::Name;
-use tsv_core::port_grid::Cell;
-use tsv_render::layout::{device_face, object_bounds, port_anchor, port_marker_box, units_box};
-use tsv_render::pick::{device_drop_target, grab_offset_u, pick, pick_hit, port_drop_target};
-use tsv_render::scene::{CABLE_WARNING, CablePreview, Ghost, contrast_text, port_color};
+use rackwright_core::ids::{CableId, DeviceId, ModelId, PortId};
+use rackwright_core::model::{Gender, PortKind, Rgb};
+use rackwright_core::name::Name;
+use rackwright_core::port_grid::Cell;
+use rackwright_render::layout::{
+    device_face, object_bounds, port_anchor, port_marker_box, units_box,
+};
+use rackwright_render::pick::{
+    device_drop_target, grab_offset_u, pick, pick_hit, port_drop_target,
+};
+use rackwright_render::scene::{CABLE_WARNING, CablePreview, Ghost, contrast_text, port_color};
 
 use crate::session::Session;
 

@@ -1,9 +1,9 @@
 mod common;
 
 use common::*;
-use tsv_core::edit::*;
-use tsv_core::ids::{DeviceId, RackId};
-use tsv_core::model::{Document, Rgb};
+use rackwright_core::edit::*;
+use rackwright_core::ids::{DeviceId, RackId};
+use rackwright_core::model::{Document, Rgb};
 
 fn drop_new(
     d: &Document,

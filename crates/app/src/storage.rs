@@ -1,17 +1,21 @@
 //! Persistence (spec §5): a swappable store of the document's JSON, and startup recovery.
 
 use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::future::Future;
 
-use tsv_core::example::example_document;
-use tsv_core::file_format::from_json;
-use tsv_core::limits::Limits;
-use tsv_core::model::Document;
+use rackwright_core::example::example_document;
+use rackwright_core::file_format::from_json;
+use rackwright_core::limits::Limits;
+use rackwright_core::model::Document;
 
 use crate::session::StartupProblem;
 
 /// Browser local-storage key of the autosaved document.
-pub const STORAGE_KEY: &str = "teststationview.document";
+pub const STORAGE_KEY: &str = "rackwright.document";
+
+/// Key the document was autosaved under before the app was renamed to Rackwright.
+pub const LEGACY_STORAGE_KEY: &str = "teststationview.document";
 
 pub const SAVE_FAILED_BANNER: &str =
     "Changes can't be saved in this browser — use Export to keep your work.";
@@ -78,6 +82,78 @@ impl DocumentStore for MemoryStore {
     }
 }
 
+/// String key-value storage like `localStorage`, so the key migration is testable natively.
+pub trait KeyValue {
+    fn get(&self, key: &str) -> Result<Option<String>, String>;
+    fn set(&self, key: &str, value: &str) -> Result<(), String>;
+    fn remove(&self, key: &str) -> Result<(), String>;
+}
+
+/// The stored document, moving one saved under `LEGACY_STORAGE_KEY` to `STORAGE_KEY`. The
+/// legacy entry is removed only once the copy has been written, so a failure loses nothing.
+pub fn load_migrating(kv: &impl KeyValue) -> Result<Option<String>, String> {
+    if let Some(current) = kv.get(STORAGE_KEY)? {
+        return Ok(Some(current));
+    }
+    let Some(legacy) = kv.get(LEGACY_STORAGE_KEY)? else {
+        return Ok(None);
+    };
+    if kv.set(STORAGE_KEY, &legacy).is_ok() {
+        let _ = kv.remove(LEGACY_STORAGE_KEY);
+    }
+    Ok(Some(legacy))
+}
+
+/// In-memory key-value storage for tests.
+#[derive(Debug, Default)]
+pub struct MemoryKeyValue {
+    pub entries: RefCell<HashMap<String, String>>,
+    /// When set, `set` and `remove` fail like a full or read-only browser storage.
+    pub fail_writes: Cell<bool>,
+}
+
+impl KeyValue for MemoryKeyValue {
+    fn get(&self, key: &str) -> Result<Option<String>, String> {
+        Ok(self.entries.borrow().get(key).cloned())
+    }
+
+    fn set(&self, key: &str, value: &str) -> Result<(), String> {
+        if self.fail_writes.get() {
+            return Err("storage unavailable".to_string());
+        }
+        self.entries
+            .borrow_mut()
+            .insert(key.to_string(), value.to_string());
+        Ok(())
+    }
+
+    fn remove(&self, key: &str) -> Result<(), String> {
+        if self.fail_writes.get() {
+            return Err("storage unavailable".to_string());
+        }
+        self.entries.borrow_mut().remove(key);
+        Ok(())
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl KeyValue for web_sys::Storage {
+    fn get(&self, key: &str) -> Result<Option<String>, String> {
+        self.get_item(key)
+            .map_err(|_| "could not read local storage".to_string())
+    }
+
+    fn set(&self, key: &str, value: &str) -> Result<(), String> {
+        self.set_item(key, value)
+            .map_err(|_| "could not write local storage".to_string())
+    }
+
+    fn remove(&self, key: &str) -> Result<(), String> {
+        self.remove_item(key)
+            .map_err(|_| "could not write local storage".to_string())
+    }
+}
+
 /// The browser's `localStorage`.
 #[cfg(target_arch = "wasm32")]
 pub struct LocalStorageStore;
@@ -96,18 +172,12 @@ impl LocalStorageStore {
 #[cfg(target_arch = "wasm32")]
 impl DocumentStore for LocalStorageStore {
     fn load(&self) -> impl Future<Output = Result<Option<String>, String>> {
-        let result = Self::storage().and_then(|s| {
-            s.get_item(STORAGE_KEY)
-                .map_err(|_| "could not read local storage".to_string())
-        });
+        let result = Self::storage().and_then(|s| load_migrating(&s));
         std::future::ready(result)
     }
 
     fn save(&self, json: String) -> impl Future<Output = Result<(), String>> {
-        let result = Self::storage().and_then(|s| {
-            s.set_item(STORAGE_KEY, &json)
-                .map_err(|_| "could not write local storage".to_string())
-        });
+        let result = Self::storage().and_then(|s| KeyValue::set(&s, STORAGE_KEY, &json));
         std::future::ready(result)
     }
 }

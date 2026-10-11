@@ -1,8 +1,8 @@
 mod common;
 
 use common::*;
-use tsv_core::model::Document;
-use tsv_core::validate::{ValidationError, validate};
+use rackwright_core::model::Document;
+use rackwright_core::validate::{ValidationError, validate};
 
 fn check(d: &Document) -> Result<(), ValidationError> {
     validate(d, &limits())
@@ -205,9 +205,9 @@ fn two_ported_devices() -> Document {
 fn port_ids(
     d: &Document,
 ) -> (
-    tsv_core::ids::PortId,
-    tsv_core::ids::PortId,
-    tsv_core::ids::PortId,
+    rackwright_core::ids::PortId,
+    rackwright_core::ids::PortId,
+    rackwright_core::ids::PortId,
 ) {
     let a = &d.racks[0].devices[0].ports;
     let b = &d.racks[0].devices[1].ports;
@@ -229,7 +229,7 @@ fn cable_ids_must_be_unique_among_all_ids() {
     let mut d = two_ported_devices();
     let (a1, _, b1) = port_ids(&d);
     let mut c = cable("C1", a1, b1);
-    c.id = tsv_core::ids::CableId(d.racks[0].id.0);
+    c.id = rackwright_core::ids::CableId(d.racks[0].id.0);
     d.cables = vec![c];
     assert!(matches!(check(&d), Err(ValidationError::DuplicateId(_))));
 }
@@ -245,7 +245,7 @@ fn cable_names_must_be_unique() {
         Err(ValidationError::DuplicateCableName(s("LEAD")))
     );
     d.cables[1].a = a2;
-    d.cables[1].b = tsv_core::ids::PortId::new();
+    d.cables[1].b = rackwright_core::ids::PortId::new();
     d.cables[1].name = name("Other");
     assert_eq!(
         check(&d),

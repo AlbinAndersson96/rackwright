@@ -1,8 +1,8 @@
 mod common;
 
 use common::*;
-use tsv_core::ids::{DeviceId, PortId};
-use tsv_core::model::{Document, Rgb};
+use rackwright_core::ids::{DeviceId, PortId};
+use rackwright_core::model::{Document, Rgb};
 
 #[test]
 fn new_default_is_station1_with_one_42u_rack() {
