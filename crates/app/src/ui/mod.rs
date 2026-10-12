@@ -10,9 +10,9 @@ use glam::Vec2;
 use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 
-use self::core::{Dialog, Signals, install, now_s, signals, update};
+use self::core::{Dialog, Signals, install, now_s, save_now, signals, update};
 use crate::session::Session;
-use crate::storage::{DocumentStore, LocalStorageStore, Startup, interpret_stored};
+use crate::storage::{DocumentStore, LocalStorageStore, interpret_stored};
 
 /// Entry point: installs the panic hook and mounts the app.
 pub fn start() {
@@ -46,17 +46,25 @@ fn App() -> impl IntoView {
             return;
         }
         let limits = rackwright_core::limits::Limits::default();
-        let stored = LocalStorageStore.load().await;
-        let (document, problem) = match interpret_stored(stored, &limits) {
-            Startup::Fresh(d) | Startup::Restored(d) => (d, None),
-            Startup::Unreadable { fallback, problem } => (fallback, Some(problem)),
-        };
-        let mut session = Session::new(document, limits, Vec2::new(800.0, 600.0));
-        let has_problem = problem.is_some();
-        session.set_startup_problem(problem);
+        let stored_document = LocalStorageStore::DOCUMENT.load().await;
+        let stored_catalog = LocalStorageStore::CATALOG.load().await;
+        let startup = interpret_stored(stored_document, stored_catalog, &limits);
+        let mut session = Session::new(
+            startup.document,
+            startup.catalog,
+            limits,
+            Vec2::new(800.0, 600.0),
+        );
+        let has_problem = !startup.problems.is_empty();
+        for problem in startup.problems {
+            session.add_startup_problem(problem);
+        }
         install(session, sig);
         if has_problem {
             sig.dialog.set(Some(Dialog::StartupProblem));
+        }
+        if startup.save_now {
+            save_now();
         }
         install_keyboard();
         status.set(Status::Ready);

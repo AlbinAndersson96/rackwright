@@ -10,7 +10,8 @@ use crate::forms::{
     parse_height, parse_name,
 };
 use crate::interaction::DragSource;
-use crate::ui::core::{now_s, read, signals, update};
+use crate::ui::core::{Dialog, now_s, read, signals, update};
+use crate::ui::toolbar::{download, read_chosen_file};
 use crate::ui::viewport::{forward_cancel, forward_move, forward_up};
 
 /// What the properties panel shows for the current selection.
@@ -30,8 +31,8 @@ enum Selected {
         height: u32,
         color: String,
         position: String,
-        /// The linked catalogue entry: its display name, manufacturer and model.
-        model: Option<(String, String, String)>,
+        /// The device's link to the catalogue.
+        model: ModelLink,
     },
     Port {
         id: PortId,
@@ -52,6 +53,16 @@ enum Selected {
     },
 }
 
+/// What a device's link to the catalogue resolves to.
+#[derive(Clone, PartialEq)]
+enum ModelLink {
+    AdHoc,
+    /// The linked entry: its display name, manufacturer and model.
+    Present(String, String, String),
+    /// Linked to a model that is not in the catalogue.
+    Missing,
+}
+
 /// `Rack/Device/Port`, or "—" for a port that no longer exists.
 fn port_path(doc: &Document, port: PortId) -> String {
     doc.port(port).map_or("—".to_string(), |(r, d, p)| {
@@ -62,6 +73,7 @@ fn port_path(doc: &Document, port: PortId) -> String {
 fn selected() -> Selected {
     read(|s| {
         let doc = s.document();
+        let catalog = s.catalog();
         match s.selection() {
             Some(ObjectId::Rack(id)) => doc.rack(id).map(|r| Selected::Rack {
                 id,
@@ -79,14 +91,14 @@ fn selected() -> Selected {
                     format!("U{}–U{}", d.bottom_u, d.top_u())
                 },
                 model: match d.kind {
-                    DeviceKind::Model(m) => doc.model(m).map(|e| {
-                        (
+                    DeviceKind::Model(m) => catalog.model(m).map_or(ModelLink::Missing, |e| {
+                        ModelLink::Present(
                             e.display_name(),
                             e.manufacturer.to_string(),
                             e.model.to_string(),
                         )
                     }),
-                    DeviceKind::AdHoc => None,
+                    DeviceKind::AdHoc => ModelLink::AdHoc,
                 },
             }),
             Some(ObjectId::Port(id)) => doc.port(id).map(|(_, _, p)| Selected::Port {
@@ -220,23 +232,32 @@ pub fn Properties() -> impl IntoView {
 
 /// The device's model link, "Update model from this device" and "Save as model".
 #[component]
-fn SaveAsModel(device: DeviceId, model: Option<(String, String, String)>) -> impl IntoView {
-    let (manufacturer, model_text) = model
-        .as_ref()
-        .map_or((String::new(), String::new()), |(_, m, t)| {
-            (m.clone(), t.clone())
-        });
+fn SaveAsModel(device: DeviceId, model: ModelLink) -> impl IntoView {
+    let (manufacturer, model_text) = match &model {
+        ModelLink::Present(_, m, t) => (m.clone(), t.clone()),
+        ModelLink::AdHoc | ModelLink::Missing => (String::new(), String::new()),
+    };
     let manufacturer = RwSignal::new(manufacturer);
     let model_text = RwSignal::new(model_text);
     let error = RwSignal::new(None::<String>);
-    let linked = model.map(|(display, _, _)| {
-        view! {
-            <div class="field"><span>"Model"</span><span>{display}</span></div>
-            <button on:click=move |_| {
-                error.set(update(|s| s.update_model(device)).err());
-            }>"Update model from this device"</button>
-        }
-    });
+    let linked = match model {
+        ModelLink::AdHoc => None,
+        ModelLink::Present(display, _, _) => Some(
+            view! {
+                <div class="field"><span>"Model"</span><span>{display}</span></div>
+                <button on:click=move |_| {
+                    error.set(update(|s| s.update_model(device)).err());
+                }>"Update model from this device"</button>
+            }
+            .into_any(),
+        ),
+        ModelLink::Missing => Some(
+            view! {
+                <div class="field"><span>"Model"</span><span class="hint">"not in catalogue"</span></div>
+            }
+            .into_any(),
+        ),
+    };
     view! {
         {linked}
         <h3 class="subheading">"Save as model"</h3>
@@ -265,8 +286,8 @@ pub fn CatalogPanel() -> impl IntoView {
         sig.rev.track();
         read(|s| {
             let mut v: Vec<(ModelId, String, String, String, String)> = s
-                .document()
-                .catalog
+                .catalog()
+                .entries
                 .iter()
                 .map(|e| {
                     let ports = match e.ports.len() {
@@ -286,9 +307,33 @@ pub fn CatalogPanel() -> impl IntoView {
             v
         })
     };
+    let file_ref = NodeRef::<leptos::html::Input>::new();
+    let on_file = move |_| {
+        if let Some(input) = file_ref.get() {
+            read_chosen_file(&input, |text| Dialog::ConfirmImportCatalog { text });
+        }
+    };
     view! {
         <section class="panel">
-            <h2>"Catalogue"</h2>
+            <div class="panel-header">
+                <h2>"Catalogue"</h2>
+                <button
+                    title="Replace the catalogue with a catalogue file"
+                    on:click=move |_| {
+                        if let Some(input) = file_ref.get() {
+                            input.click();
+                        }
+                    }
+                >"Import"</button>
+                <input node_ref=file_ref type="file" accept=".json,application/json" hidden on:change=on_file />
+                <button
+                    title="Save the catalogue as a file of its own"
+                    on:click=move |_| {
+                        let (name, json) = read(|s| s.export_catalog());
+                        download(&name, &json);
+                    }
+                >"Export"</button>
+            </div>
             {move || {
                 let entries = entries();
                 if entries.is_empty() {

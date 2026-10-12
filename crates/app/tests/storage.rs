@@ -3,53 +3,118 @@ mod common;
 use std::cell::RefCell;
 
 use common::*;
-use rackwright_app::session::{Session, StartupProblem};
+use rackwright_app::session::{Session, StartupProblem, StoredItem};
 use rackwright_app::storage::*;
-use rackwright_core::file_format::to_json;
-use rackwright_core::model::Document;
+use rackwright_core::file_format::{catalog_to_json, to_json};
+use rackwright_core::model::{Catalog, DeviceKind, Document};
+
+fn none() -> Result<Option<String>, String> {
+    Ok(None)
+}
 
 #[test]
 fn nothing_stored_starts_with_the_example() {
-    let s = interpret_stored(Ok(None), &limits());
-    let Startup::Fresh(d) = s else {
-        panic!("{s:?}")
-    };
-    assert_eq!(d.name.as_str(), "Example Station");
-    assert!(!d.cables.is_empty() && !d.catalog.is_empty());
+    let s = interpret_stored(none(), none(), &limits());
+    assert_eq!(s.document.name.as_str(), "Example Station");
+    assert!(!s.document.cables.is_empty() && !s.catalog.entries.is_empty());
+    assert!(s.problems.is_empty());
+    assert!(!s.save_now);
 }
 
 #[test]
 fn unavailable_storage_starts_fresh() {
-    assert!(matches!(
-        interpret_stored(Err("blocked".into()), &limits()),
-        Startup::Fresh(_)
-    ));
+    let s = interpret_stored(Err("blocked".into()), Err("blocked".into()), &limits());
+    assert_eq!(s.document.name.as_str(), "Example Station");
+    assert!(s.problems.is_empty());
 }
 
 #[test]
-fn stored_document_is_restored() {
+fn a_first_visit_merges_the_example_into_a_stored_catalogue() {
+    let (_, models) = rackwright_core::example::example_station(&limits());
+    let s = interpret_stored(none(), Ok(Some(catalog_to_json(&models))), &limits());
+    assert_eq!(s.catalog, models, "the same models, under the stored IDs");
+    let linked = s
+        .document
+        .racks
+        .iter()
+        .flat_map(|r| &r.devices)
+        .filter_map(|d| match d.kind {
+            DeviceKind::Model(m) => Some(m),
+            DeviceKind::AdHoc => None,
+        });
+    for m in linked {
+        assert!(models.model(m).is_some());
+    }
+}
+
+#[test]
+fn stored_document_and_catalogue_are_restored() {
     let d = doc(vec![rack("Lab", 12, vec![device("DMM", 1, 1)])]);
-    assert_eq!(
-        interpret_stored(Ok(Some(to_json(&d))), &limits()),
-        Startup::Restored(d)
+    let (_, c) = rackwright_core::example::example_station(&limits());
+    let s = interpret_stored(
+        Ok(Some(to_json(&d))),
+        Ok(Some(catalog_to_json(&c))),
+        &limits(),
     );
+    assert_eq!((s.document, s.catalog), (d, c));
+    assert!(s.problems.is_empty() && !s.save_now);
+}
+
+/// A version-5 document with `c` embedded, as stored before the catalogue moved out.
+fn version_5(d: &Document, c: &Catalog) -> String {
+    let mut value: serde_json::Value = serde_json::from_str(&to_json(d)).unwrap();
+    let entries: serde_json::Value = serde_json::from_str(&catalog_to_json(c)).unwrap();
+    value["format_version"] = 5.into();
+    value["catalog"] = entries["entries"].clone();
+    value.to_string()
+}
+
+#[test]
+fn an_older_stored_document_hands_over_its_catalogue() {
+    let d = doc(vec![rack("Lab", 12, vec![])]);
+    let (_, c) = rackwright_core::example::example_station(&limits());
+    let s = interpret_stored(Ok(Some(version_5(&d, &c))), none(), &limits());
+    assert_eq!((&s.document, &s.catalog), (&d, &c));
+    assert!(s.save_now, "the catalogue is not stored on its own yet");
+
+    // A catalogue stored on its own wins.
+    let s = interpret_stored(
+        Ok(Some(version_5(&d, &c))),
+        Ok(Some(catalog_to_json(&Catalog::default()))),
+        &limits(),
+    );
+    assert!(s.catalog.entries.is_empty());
+    assert!(!s.save_now);
 }
 
 #[test]
 fn unreadable_data_is_kept_and_explained() {
     let raw = "{ not json".to_string();
-    let Startup::Unreadable { fallback, problem } =
-        interpret_stored(Ok(Some(raw.clone())), &limits())
-    else {
-        panic!("expected Unreadable")
+    let s = interpret_stored(Ok(Some(raw.clone())), none(), &limits());
+    assert_eq!(s.document.name.as_str(), "Station1");
+    let [problem] = s.problems.as_slice() else {
+        panic!("{:?}", s.problems)
     };
-    assert_eq!(fallback.name.as_str(), "Station1");
+    assert_eq!(problem.item, StoredItem::Document);
     assert_eq!(problem.raw, raw);
     assert!(
         problem.reason.starts_with("The file is not valid JSON"),
         "{}",
         problem.reason
     );
+}
+
+#[test]
+fn an_unreadable_catalogue_is_its_own_problem() {
+    let d = doc(vec![rack("Lab", 12, vec![])]);
+    let s = interpret_stored(Ok(Some(to_json(&d))), Ok(Some(to_json(&d))), &limits());
+    assert_eq!(s.document, d, "the document still loads");
+    assert!(s.catalog.entries.is_empty());
+    let [problem] = s.problems.as_slice() else {
+        panic!("{:?}", s.problems)
+    };
+    assert_eq!(problem.item, StoredItem::Catalog);
+    assert_eq!(problem.reason, "This is a station file, not a catalogue.");
 }
 
 #[test]
@@ -60,27 +125,37 @@ fn memory_store_round_trips() {
     assert_eq!(pollster::block_on(store.load()), Ok(Some("{}".into())));
 }
 
-#[test]
-fn autosave_writes_the_document_and_reports_failure() {
-    let session = RefCell::new(Session::new(
+fn new_session() -> RefCell<Session> {
+    let (_, c) = rackwright_core::example::example_station(&limits());
+    RefCell::new(Session::new(
         Document::new_default(&limits()),
+        c,
         limits(),
         VIEWPORT,
-    ));
-    let store = MemoryStore::default();
-    pollster::block_on(autosave(&session, &store));
+    ))
+}
+
+#[test]
+fn autosave_writes_the_document_and_catalogue_and_reports_failure() {
+    let session = new_session();
+    let (documents, catalogs) = (MemoryStore::default(), MemoryStore::default());
+    pollster::block_on(autosave(&session, &documents, &catalogs));
     assert_eq!(
-        store.data.borrow().as_deref(),
+        documents.data.borrow().as_deref(),
         Some(session.borrow().save_payload().as_str())
+    );
+    assert_eq!(
+        catalogs.data.borrow().as_deref(),
+        Some(session.borrow().catalog_payload().as_str())
     );
     assert_eq!(session.borrow().banner(), None);
 
-    store.fail_saves.set(true);
-    pollster::block_on(autosave(&session, &store));
+    catalogs.fail_saves.set(true);
+    pollster::block_on(autosave(&session, &documents, &catalogs));
     assert_eq!(session.borrow().banner(), Some(SAVE_FAILED_BANNER));
 
-    store.fail_saves.set(false);
-    pollster::block_on(autosave(&session, &store));
+    catalogs.fail_saves.set(false);
+    pollster::block_on(autosave(&session, &documents, &catalogs));
     assert_eq!(
         session.borrow().banner(),
         None,
@@ -90,21 +165,44 @@ fn autosave_writes_the_document_and_reports_failure() {
 
 #[test]
 fn autosave_never_overwrites_unreadable_stored_data() {
-    let session = RefCell::new(Session::new(
-        Document::new_default(&limits()),
-        limits(),
-        VIEWPORT,
-    ));
+    let session = new_session();
+    let problem = |item| StartupProblem {
+        item,
+        raw: "x".into(),
+        reason: "bad".into(),
+    };
     session
         .borrow_mut()
-        .set_startup_problem(Some(StartupProblem {
-            raw: "x".into(),
-            reason: "bad".into(),
-        }));
-    let store = MemoryStore::default();
-    *store.data.borrow_mut() = Some("x".into());
-    pollster::block_on(autosave(&session, &store));
-    assert_eq!(store.data.borrow().as_deref(), Some("x"));
+        .add_startup_problem(problem(StoredItem::Catalog));
+    let (documents, catalogs) = (MemoryStore::default(), MemoryStore::default());
+    *catalogs.data.borrow_mut() = Some("x".into());
+    pollster::block_on(autosave(&session, &documents, &catalogs));
+    assert_eq!(catalogs.data.borrow().as_deref(), Some("x"));
+    assert!(
+        documents.data.borrow().is_some(),
+        "the document still saves"
+    );
+
+    // Dismissing the problem lets the catalogue be saved again.
+    session.borrow_mut().dismiss_startup_problem();
+    pollster::block_on(autosave(&session, &documents, &catalogs));
+    assert_ne!(catalogs.data.borrow().as_deref(), Some("x"));
+
+    // Problems are shown one at a time, in order.
+    let mut s = session.borrow_mut();
+    s.add_startup_problem(problem(StoredItem::Document));
+    s.add_startup_problem(problem(StoredItem::Catalog));
+    assert_eq!(
+        s.startup_problem().map(|p| p.item),
+        Some(StoredItem::Document)
+    );
+    s.dismiss_startup_problem();
+    assert_eq!(
+        s.startup_problem().map(|p| p.item),
+        Some(StoredItem::Catalog)
+    );
+    assert!(s.autosave_allowed(StoredItem::Document));
+    assert!(!s.autosave_allowed(StoredItem::Catalog));
 }
 
 #[test]

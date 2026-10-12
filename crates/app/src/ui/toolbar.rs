@@ -4,6 +4,7 @@ use leptos::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 
+use crate::session::StoredItem;
 use crate::ui::core::{Dialog, now_s, read, save_now, signals, update};
 
 /// Offers `text` to the user as a file download named `file_name`.
@@ -43,6 +44,27 @@ pub fn download(file_name: &str, text: &str) {
         .set_timeout_with_callback_and_timeout_and_arguments_0(revoke.unchecked_ref(), 10_000);
 }
 
+/// Reads the file chosen in `input` (then clears it, so the same file can be chosen again)
+/// and opens the dialog `confirm` makes from its text.
+pub fn read_chosen_file(
+    input: &web_sys::HtmlInputElement,
+    confirm: impl FnOnce(String) -> Dialog + 'static,
+) {
+    let Some(file) = input.files().and_then(|f| f.get(0)) else {
+        return;
+    };
+    input.set_value("");
+    leptos::task::spawn_local(async move {
+        let dialog = match JsFuture::from(file.text()).await {
+            Ok(text) => confirm(text.as_string().unwrap_or_default()),
+            Err(_) => Dialog::Error {
+                message: "The file could not be read.".into(),
+            },
+        };
+        signals().dialog.set(Some(dialog));
+    });
+}
+
 /// The project's source repository, linked from the toolbar.
 const REPO_URL: &str = "https://github.com/AlbinAndersson96/rackwright";
 
@@ -54,22 +76,9 @@ pub fn Toolbar() -> impl IntoView {
     let sig = signals();
     let file_ref = NodeRef::<leptos::html::Input>::new();
     let on_file = move |_| {
-        let Some(input) = file_ref.get() else { return };
-        let Some(file) = input.files().and_then(|f| f.get(0)) else {
-            return;
-        };
-        input.set_value("");
-        leptos::task::spawn_local(async move {
-            match JsFuture::from(file.text()).await {
-                Ok(text) => {
-                    let text = text.as_string().unwrap_or_default();
-                    signals().dialog.set(Some(Dialog::ConfirmImport { text }));
-                }
-                Err(_) => signals().dialog.set(Some(Dialog::Error {
-                    message: "The file could not be read.".into(),
-                })),
-            }
-        });
+        if let Some(input) = file_ref.get() {
+            read_chosen_file(&input, |text| Dialog::ConfirmImport { text });
+        }
     };
     let can_undo = move || {
         sig.rev.track();
@@ -158,6 +167,21 @@ pub fn DialogHost() -> impl IntoView {
                 }
                     .into_any(),
             ),
+            Dialog::ConfirmImportCatalog { text } => (
+                "Import catalogue",
+                "Replace the catalogue with the imported file? Devices linked to models that are not in the file become ad hoc. You can undo this.".into(),
+                view! {
+                    <button on:click=move |_| close()>"Cancel"</button>
+                    <button class="primary" on:click=move |_| {
+                        let result = update(|s| s.import_catalog(&text));
+                        match result {
+                            Ok(()) => close(),
+                            Err(message) => sig.dialog.set(Some(Dialog::Error { message })),
+                        }
+                    }>"Replace catalogue"</button>
+                }
+                    .into_any(),
+            ),
             Dialog::ConfirmDeleteRack { rack, name } => (
                 "Delete rack",
                 format!("Delete rack '{name}' and all its equipment?"),
@@ -176,21 +200,35 @@ pub fn DialogHost() -> impl IntoView {
                 view! { <button class="primary" on:click=move |_| close()>"OK"</button> }.into_any(),
             ),
             Dialog::StartupProblem => {
-                let reason = read(|s| s.startup_problem().map(|p| p.reason.clone())).unwrap_or_default();
+                let problem = read(|s| s.startup_problem().cloned())?;
+                let (title, fresh, file_name, restart) = match problem.item {
+                    StoredItem::Document => (
+                        "Saved document could not be loaded",
+                        "start a new document",
+                        "rackwright-recovered.json",
+                        "Start a new document",
+                    ),
+                    StoredItem::Catalog => (
+                        "Saved catalogue could not be loaded",
+                        "start with an empty catalogue",
+                        "catalogue-recovered.json",
+                        "Start with an empty catalogue",
+                    ),
+                };
+                let raw = problem.raw;
                 (
-                    "Saved document could not be loaded",
-                    format!("{reason} Download the stored data to keep it, or start a new document."),
+                    title,
+                    format!("{} Download the stored data to keep it, or {fresh}.", problem.reason),
                     view! {
-                        <button on:click=move |_| {
-                            if let Some(raw) = read(|s| s.startup_problem().map(|p| p.raw.clone())) {
-                                download("rackwright-recovered.json", &raw);
-                            }
-                        }>"Download the stored data"</button>
+                        <button on:click=move |_| download(file_name, &raw)>"Download the stored data"</button>
                         <button class="primary" on:click=move |_| {
-                            close();
-                            update(|s| s.set_startup_problem(None));
+                            let more = update(|s| {
+                                s.dismiss_startup_problem();
+                                s.startup_problem().is_some()
+                            });
+                            sig.dialog.set(more.then_some(Dialog::StartupProblem));
                             save_now();
-                        }>"Start a new document"</button>
+                        }>{restart}</button>
                     }
                         .into_any(),
                 )

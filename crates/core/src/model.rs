@@ -108,7 +108,7 @@ pub struct ModelPort {
     pub gender: Gender,
 }
 
-/// A model in the document's equipment catalogue.
+/// A model in the equipment catalogue.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatalogEntry {
     pub id: ModelId,
@@ -130,6 +130,24 @@ impl CatalogEntry {
     /// The identity compared for uniqueness (case-insensitive).
     pub fn key(&self) -> String {
         self.display_name().to_lowercase()
+    }
+}
+
+/// The equipment catalogue. It is kept apart from station documents; devices link to its
+/// entries by ID, and a link may name an entry that is not here.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Catalog {
+    pub entries: Vec<CatalogEntry>,
+}
+
+impl Catalog {
+    pub fn model(&self, id: ModelId) -> Option<&CatalogEntry> {
+        self.entries.iter().find(|e| e.id == id)
+    }
+
+    /// The entry with the same manufacturer + model as `key` (see `CatalogEntry::key`).
+    pub fn by_key(&self, key: &str) -> Option<&CatalogEntry> {
+        self.entries.iter().find(|e| e.key() == key)
     }
 }
 
@@ -300,7 +318,6 @@ pub struct Document {
     pub name: DocumentName,
     pub racks: Vec<Rack>,
     pub cables: Vec<Cable>,
-    pub catalog: Vec<CatalogEntry>,
 }
 
 impl Document {
@@ -314,7 +331,6 @@ impl Document {
                 devices: Vec::new(),
             }],
             cables: Vec::new(),
-            catalog: Vec::new(),
         }
     }
 
@@ -333,10 +349,6 @@ impl Document {
         let rack = &self.racks[ri];
         let device = &rack.devices[di];
         Some((rack, device, &device.ports[pi]))
-    }
-
-    pub fn model(&self, id: ModelId) -> Option<&CatalogEntry> {
-        self.catalog.iter().find(|e| e.id == id)
     }
 
     pub fn cable(&self, id: CableId) -> Option<&Cable> {

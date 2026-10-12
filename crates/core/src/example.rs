@@ -1,7 +1,8 @@
 //! The example station a first-time user sees: a small test station that shows every feature
 //! (racks of different heights, catalogue models placed more than once, ad-hoc equipment, all
 //! connector types and genders, coloured cables between racks, and one connector mismatch).
-//! It is built through the ordinary edit plans, so it obeys every rule.
+//! It is built through the ordinary edit plans, so it obeys every rule. Its models come in a
+//! catalogue of their own, which the app merges into the user's.
 
 use crate::edit::{
     DeviceSource, Plan, plan_connect, plan_device_drop, plan_rename_cable, plan_rename_device,
@@ -9,7 +10,7 @@ use crate::edit::{
 };
 use crate::ids::{DeviceId, PortId, RackId};
 use crate::limits::Limits;
-use crate::model::{Device, DeviceKind, Document, Gender, Port, PortKind, Rack, Rgb};
+use crate::model::{Catalog, Device, DeviceKind, Document, Gender, Port, PortKind, Rack, Rgb};
 use crate::name::{DocumentName, ModelText, Name};
 
 use Gender::{Female, Male};
@@ -25,7 +26,8 @@ const ORANGE: u32 = 0xe07b20;
 const YELLOW: u32 = 0xe0c020;
 const BLUE: u32 = 0x2f6fd6;
 
-pub fn example_document(limits: &Limits) -> Document {
+/// The example station and the catalogue its devices are linked to.
+pub fn example_station(limits: &Limits) -> (Document, Catalog) {
     let name = |s: &str| Name::parse(s, limits).expect("example names are valid");
     let device = |n: &str, bottom_u, height_u, color: u32, ports: &[PortSpec]| Device {
         id: DeviceId::new(),
@@ -170,8 +172,8 @@ pub fn example_document(limits: &Limits) -> Document {
             ),
         ],
         cables: Vec::new(),
-        catalog: Vec::new(),
     };
+    let mut catalog = Catalog::default();
 
     // The instruments become catalogue models (the PDU and the fixture stay ad hoc).
     for (device_name, manufacturer, model) in [
@@ -183,12 +185,9 @@ pub fn example_document(limits: &Limits) -> Document {
     ] {
         let device = device_id(&doc, device_name);
         let text = |s| ModelText::parse(s).expect("valid model text");
-        doc = apply(plan_save_model(
-            &doc,
-            device,
-            text(manufacturer),
-            text(model),
-        ));
+        let plan = plan_save_model(&doc, &catalog, device, text(manufacturer), text(model))
+            .expect("the example follows every rule");
+        (doc, catalog) = (plan.document, plan.catalog);
     }
 
     // A second power supply, placed from the catalogue.
@@ -197,7 +196,11 @@ pub fn example_document(limits: &Limits) -> Document {
         DeviceKind::AdHoc => unreachable!("PSU1 was saved as a model"),
     };
     let power = doc.racks[1].id;
-    let plan = plan_device_drop(&doc, limits, &DeviceSource::Model(psu_model), power, 10);
+    let entry = catalog
+        .model(psu_model)
+        .expect("PSU1's model was saved")
+        .clone();
+    let plan = plan_device_drop(&doc, limits, &DeviceSource::Model(entry), power, 10);
     let placed = match apply_subject(&mut doc, plan) {
         Some(crate::edit::ObjectId::Device(d)) => d,
         _ => unreachable!("a device drop creates a device"),
@@ -227,7 +230,7 @@ pub fn example_document(limits: &Limits) -> Document {
         doc = apply(plan_rename_cable(&doc, id, name(cable)));
         doc = apply(plan_set_cable_color(&doc, id, rgb(color)));
     }
-    doc
+    (doc, catalog)
 }
 
 fn rgb(hex: u32) -> Rgb {

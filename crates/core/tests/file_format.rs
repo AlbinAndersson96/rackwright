@@ -41,7 +41,7 @@ fn round_trip_preserves_the_document() {
 #[test]
 fn output_is_pretty_and_versioned() {
     let json = to_json(&sample());
-    assert!(json.starts_with("{\n  \"format_version\": 5,"), "{json}");
+    assert!(json.starts_with("{\n  \"format_version\": 6,"), "{json}");
     assert!(json.contains("\"color\": \"#12abff\""), "{json}");
     assert!(json.contains("\"cables\": ["), "{json}");
     assert!(json.contains("\"color\": \"#ee1122\""), "{json}");
@@ -50,7 +50,7 @@ fn output_is_pretty_and_versioned() {
 #[test]
 fn version_1_files_load_without_cables() {
     let original = sample();
-    let json = to_json(&original).replacen("\"format_version\": 5", "\"format_version\": 1", 1);
+    let json = to_json(&original).replacen("\"format_version\": 6", "\"format_version\": 1", 1);
     let d = from_json(&remove_cables(&json), &limits()).unwrap();
     assert!(d.cables.is_empty());
     assert_eq!(d.racks, original.racks);
@@ -135,9 +135,9 @@ fn missing_kinds_default() {
 
 #[test]
 fn newer_versions_are_rejected() {
-    let json = to_json(&sample()).replacen("\"format_version\": 5", "\"format_version\": 6", 1);
+    let json = to_json(&sample()).replacen("\"format_version\": 6", "\"format_version\": 7", 1);
     let err = from_json(&json, &limits()).unwrap_err();
-    assert_eq!(err, LoadError::TooNew { found: 6 });
+    assert_eq!(err, LoadError::TooNew { found: 7 });
     assert_eq!(
         err.to_string(),
         "This file was made by a newer version of the app."

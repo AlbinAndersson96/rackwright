@@ -3,22 +3,23 @@ mod common;
 use std::collections::HashSet;
 
 use common::*;
-use rackwright_core::example::example_document;
+use rackwright_core::example::example_station;
 use rackwright_core::file_format::{from_json, to_json};
 use rackwright_core::model::{DeviceKind, Gender, PortKind};
-use rackwright_core::validate::validate;
+use rackwright_core::validate::{validate, validate_catalog};
 
 #[test]
 fn the_example_is_valid_and_survives_a_file_round_trip() {
-    let d = example_document(&limits());
+    let (d, catalog) = example_station(&limits());
     assert_eq!(validate(&d, &limits()), Ok(()));
+    assert_eq!(validate_catalog(&catalog, &limits()), Ok(()));
     assert_eq!(from_json(&to_json(&d), &limits()), Ok(d.clone()));
     assert_eq!(d.name.as_str(), "Example Station");
 }
 
 #[test]
 fn the_example_shows_every_feature() {
-    let d = example_document(&limits());
+    let (d, catalog) = example_station(&limits());
     let devices: Vec<_> = d.racks.iter().flat_map(|r| &r.devices).collect();
     let ports: Vec<_> = devices.iter().flat_map(|x| &x.ports).collect();
 
@@ -27,7 +28,7 @@ fn the_example_shows_every_feature() {
     assert!(heights.len() >= 2, "racks of different heights");
 
     // Catalogue: several models, one placed twice, and ad-hoc devices too.
-    assert!(d.catalog.len() >= 4);
+    assert!(catalog.entries.len() >= 4);
     let linked: Vec<_> = devices
         .iter()
         .filter_map(|x| match x.kind {
@@ -41,6 +42,10 @@ fn the_example_shows_every_feature() {
         "a model placed more than once"
     );
     assert!(devices.iter().any(|x| x.kind == DeviceKind::AdHoc));
+    assert!(
+        linked.iter().all(|m| catalog.model(*m).is_some()),
+        "every link resolves in the example's catalogue"
+    );
 
     // Every connector type and gender appears.
     let kinds: HashSet<PortKind> = ports.iter().map(|p| p.kind).collect();
@@ -72,7 +77,7 @@ fn the_example_shows_every_feature() {
 
 #[test]
 fn each_example_has_fresh_ids() {
-    let (a, b) = (example_document(&limits()), example_document(&limits()));
+    let ((a, _), (b, _)) = (example_station(&limits()), example_station(&limits()));
     assert_ne!(a.racks[0].id, b.racks[0].id);
     assert_eq!(to_json(&a).len(), to_json(&b).len(), "same content");
 }

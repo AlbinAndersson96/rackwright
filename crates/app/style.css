@@ -42,6 +42,8 @@ input[type="color"] { padding: 0; height: 28px; }
 .sidebar { overflow-y: auto; background: var(--bg); border-right: 1px solid var(--line); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
 .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 0 0 6px; }
+.panel-header { display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px; }
+.panel-header h2 { flex: 1; margin: 0; }
 .tree-panel { max-height: 45vh; overflow-y: auto; }
 
 .tree { list-style: none; margin: 0; padding: 0; }

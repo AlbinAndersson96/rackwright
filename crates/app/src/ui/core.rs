@@ -21,6 +21,7 @@ pub enum Dialog {
     ConfirmNew,
     ConfirmExample,
     ConfirmImport { text: String },
+    ConfirmImportCatalog { text: String },
     ConfirmDeleteRack { rack: RackId, name: String },
     Error { message: String },
     StartupProblem,
@@ -125,14 +126,9 @@ pub fn now_s() -> f64 {
 
 impl Core {
     fn after_change(&self) {
-        let (ui_revision, dragging, revision, allowed) = {
+        let (ui_revision, dragging, revision) = {
             let s = self.session.borrow();
-            (
-                s.ui_revision(),
-                s.is_dragging(),
-                s.revision(),
-                s.autosave_allowed(),
-            )
+            (s.ui_revision(), s.is_dragging(), s.revision())
         };
         if self.sig.rev.get_untracked() != ui_revision {
             self.sig.rev.set(ui_revision);
@@ -140,7 +136,8 @@ impl Core {
         if self.sig.dragging.get_untracked() != dragging {
             self.sig.dragging.set(dragging);
         }
-        if allowed && self.saved_revision.get() != revision {
+        // `autosave` skips whatever a startup problem protects.
+        if self.saved_revision.get() != revision {
             self.saved_revision.set(revision);
             save_now();
         }
@@ -148,11 +145,16 @@ impl Core {
     }
 }
 
-/// Writes the document to local storage now (and updates the banner).
+/// Writes the document and catalogue to local storage now (and updates the banner).
 pub fn save_now() {
     let session = core().session.clone();
     leptos::task::spawn_local(async move {
-        autosave(&session, &LocalStorageStore).await;
+        autosave(
+            &session,
+            &LocalStorageStore::DOCUMENT,
+            &LocalStorageStore::CATALOG,
+        )
+        .await;
         let core = core();
         let rev = core.session.borrow().ui_revision();
         core.sig.rev.set(rev);

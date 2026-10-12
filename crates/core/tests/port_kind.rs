@@ -120,7 +120,7 @@ fn every_type_survives_a_file_round_trip() {
         vec![with_ports(device("D", 1, 3), ports)],
     )]);
     let json = to_json(&d);
-    assert!(json.starts_with("{\n  \"format_version\": 5,"), "{json}");
+    assert!(json.starts_with("{\n  \"format_version\": 6,"), "{json}");
     assert!(json.contains("\"kind\": \"n_type\""), "{json}");
     assert_eq!(from_json(&json, &limits()), Ok(d));
 }
@@ -128,7 +128,7 @@ fn every_type_survives_a_file_round_trip() {
 #[test]
 fn version_2_files_still_load_and_unknown_types_are_malformed() {
     let d = wired(PortKind::Unspecified, PortKind::Unspecified);
-    let v2 = to_json(&d).replacen("\"format_version\": 5", "\"format_version\": 2", 1);
+    let v2 = to_json(&d).replacen("\"format_version\": 6", "\"format_version\": 2", 1);
     assert_eq!(from_json(&v2, &limits()), Ok(d.clone()));
     let bad = to_json(&d).replacen("\"kind\": \"unspecified\"", "\"kind\": \"hdmi\"", 1);
     assert!(matches!(

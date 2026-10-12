@@ -1,5 +1,5 @@
-//! Edit operations. Each `plan_*` function computes a complete candidate document
-//! without touching its input; a `Rejection` means nothing changes.
+//! Edit operations. Each `plan_*` function computes a complete candidate document (and, for
+//! catalogue edits, catalogue) without touching its input; a `Rejection` means nothing changes.
 
 mod cable;
 mod catalog;
@@ -16,7 +16,7 @@ pub use port::*;
 pub use rack::*;
 
 use crate::ids::{CableId, DeviceId, PortId, RackId};
-use crate::model::Document;
+use crate::model::{Catalog, Document};
 use crate::placement::PlacementError;
 use crate::port_grid::PortPlacementError;
 
@@ -31,6 +31,15 @@ pub enum ObjectId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Plan {
     pub document: Document,
+    /// The object created or moved by this plan, if any.
+    pub subject: Option<ObjectId>,
+}
+
+/// A catalogue edit: the new catalogue, and the document with its links updated.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CatalogPlan {
+    pub document: Document,
+    pub catalog: Catalog,
     /// The object created or moved by this plan, if any.
     pub subject: Option<ObjectId>,
 }
@@ -71,6 +80,8 @@ pub enum Rejection {
     ModelRequired,
     #[error("the device was not placed from a catalogue model")]
     NotLinked,
+    #[error("the model is not in the catalogue")]
+    ModelMissing,
 }
 
 impl From<PlacementError> for Rejection {

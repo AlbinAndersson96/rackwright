@@ -44,6 +44,7 @@ fn parents(id: ObjectId) -> Vec<ObjectId> {
 fn rows(collapsed: &[ObjectId]) -> Vec<Row> {
     read(|s| {
         let doc = s.document();
+        let catalog = s.catalog();
         let mut rows = vec![Row {
             target: RenameTarget::Document,
             label: doc.name.to_string(),
@@ -73,10 +74,12 @@ fn rows(collapsed: &[ObjectId]) -> Vec<Row> {
                     target: RenameTarget::Object(device_id),
                     label: device.name.to_string(),
                     detail: match device.kind {
-                        rackwright_core::model::DeviceKind::Model(m) => doc.model(m).map_or_else(
-                            || format!("U{}", device.bottom_u),
-                            |e| format!("U{} · {}", device.bottom_u, e.model),
-                        ),
+                        rackwright_core::model::DeviceKind::Model(m) => {
+                            catalog.model(m).map_or_else(
+                                || format!("U{}", device.bottom_u),
+                                |e| format!("U{} · {}", device.bottom_u, e.model),
+                            )
+                        }
                         rackwright_core::model::DeviceKind::AdHoc => {
                             format!("U{}", device.bottom_u)
                         }
