@@ -40,8 +40,11 @@ with native tests; browser code is a thin layer.**
   - `Editor` keeps whole-document undo/redo snapshots.
   - `placement.rs` (1D device push) and `port_grid.rs` (2D port push) are the pure algorithms
     behind the plans.
-  - `validate` checks every invariant. `file_format` is the versioned JSON format, with on-disk
-    types kept separate from the model.
+  - The equipment `Catalog` is kept apart from the `Document`; devices link to its entries by
+    ID, and a link may dangle. Catalogue edits return a `CatalogPlan` (document and catalogue),
+    and `Editor` snapshots both.
+  - `validate` checks every invariant. `file_format` has two versioned JSON formats (station
+    files and catalogue files), with on-disk types kept separate from the model.
   - Configurable limits (name length, port grid, max rack height) live only in `Limits`.
 - **`rackwright-render` (`crates/render`): world geometry and drawing.**
   - World units are millimetres, Y up, racks along +X with their fronts at z = 0. U1 sits on the
@@ -54,13 +57,14 @@ with native tests; browser code is a thin layer.**
     `TextRasterizer` abstracts label text; the browser implementation uses an `OffscreenCanvas`.
 - **`rackwright-app` (`crates/app`): the application.**
   - `session::Session` holds the editor, selection, view, drag preview, banner and startup
-    problem. Every user action is a method on it.
+    problems. Every user action is a method on it.
   - `interaction.rs` adds the pointer/keyboard state machine as further `impl Session` methods.
     Positions are canvas-relative CSS pixels.
-  - `revision()` changes with the document and drives autosave. `ui_revision()` changes with
+  - `revision()` changes with the document or catalogue and drives autosave. `ui_revision()` changes with
     anything the DOM shows.
   - `storage` holds the `DocumentStore` trait (JSON text, async so a backend can replace local
-    storage), startup recovery and autosave.
+    storage; one store each for the document and the catalogue), startup recovery and
+    autosave.
   - `ui/` (Leptos 0.8, client-side rendering, browser only) keeps non-reactive state in a
     thread-local `Core` (`ui/core.rs`).
   - **UI pattern:** components read through `read(|s| …)` after tracking `sig.rev`. They mutate

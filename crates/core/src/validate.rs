@@ -1,4 +1,5 @@
-//! Full invariant check for documents that did not come from the editor (imports, storage).
+//! Full invariant checks for documents and catalogues that did not come from the editor
+//! (imports, storage).
 //! All arithmetic is in u64 so absurd values cannot overflow.
 
 use std::collections::{HashMap, HashSet};
@@ -7,7 +8,7 @@ use uuid::Uuid;
 
 use crate::ids::PortId;
 use crate::limits::Limits;
-use crate::model::{Cable, CatalogEntry, Device, DeviceKind, Document, Rack};
+use crate::model::{Cable, Catalog, CatalogEntry, Device, Document, Rack};
 use crate::name::Name;
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -53,8 +54,6 @@ pub enum ValidationError {
     DuplicateModel(String),
     #[error("Model '{model}': {reason}")]
     InvalidModel { model: String, reason: String },
-    #[error("Device '{device}' was placed from a model that is not in the catalogue")]
-    DeviceModelMissing { device: String },
     #[error("Device '{device}': port '{port}' has two cables, '{a}' and '{b}'")]
     PortHasTwoCables {
         device: String,
@@ -72,8 +71,27 @@ pub fn validate(doc: &Document, limits: &Limits) -> Result<(), ValidationError> 
     for rack in &doc.racks {
         check_rack(rack, limits)?;
     }
-    check_cables(doc)?;
-    check_catalog(doc, limits)
+    check_cables(doc)
+}
+
+/// The catalogue rules. Devices may link to models that are not here, so stations are not
+/// checked against it.
+pub fn validate_catalog(catalog: &Catalog, limits: &Limits) -> Result<(), ValidationError> {
+    let mut ids = HashSet::new();
+    let mut keys = HashSet::new();
+    for entry in &catalog.entries {
+        if !ids.insert(entry.id) {
+            return Err(ValidationError::DuplicateId(entry.id.0.to_string()));
+        }
+        if !keys.insert(entry.key()) {
+            return Err(ValidationError::DuplicateModel(entry.display_name()));
+        }
+        check_entry(entry, limits).map_err(|reason| ValidationError::InvalidModel {
+            model: entry.display_name(),
+            reason,
+        })?;
+    }
+    Ok(())
 }
 
 fn check_unique_ids(doc: &Document) -> Result<(), ValidationError> {
@@ -96,9 +114,6 @@ fn check_unique_ids(doc: &Document) -> Result<(), ValidationError> {
     }
     for cable in &doc.cables {
         insert(cable.id.0)?;
-    }
-    for entry in &doc.catalog {
-        insert(entry.id.0)?;
     }
     Ok(())
 }
@@ -213,29 +228,6 @@ fn check_cables(doc: &Document) -> Result<(), ValidationError> {
                     b: cable_name,
                 });
             }
-        }
-    }
-    Ok(())
-}
-
-fn check_catalog(doc: &Document, limits: &Limits) -> Result<(), ValidationError> {
-    let mut seen = HashSet::new();
-    for entry in &doc.catalog {
-        if !seen.insert(entry.key()) {
-            return Err(ValidationError::DuplicateModel(entry.display_name()));
-        }
-        check_entry(entry, limits).map_err(|reason| ValidationError::InvalidModel {
-            model: entry.display_name(),
-            reason,
-        })?;
-    }
-    for device in doc.racks.iter().flat_map(|r| &r.devices) {
-        if let DeviceKind::Model(id) = device.kind
-            && doc.model(id).is_none()
-        {
-            return Err(ValidationError::DeviceModelMissing {
-                device: device.name.to_string(),
-            });
         }
     }
     Ok(())

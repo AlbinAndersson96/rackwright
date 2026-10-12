@@ -1,20 +1,21 @@
-//! Everything the app knows, independent of the DOM: document and history, selection, view,
-//! drag preview and status (spec §3.6, §4.3, §5). The UI calls these methods and redraws.
+//! Everything the app knows, independent of the DOM: document, catalogue and history,
+//! selection, view, drag preview and status (spec §3.6, §4.3, §5). The UI calls these methods
+//! and redraws.
 
 use glam::{Vec2, Vec3};
 use rackwright_core::edit::{
-    ObjectId, Plan, Rejection, plan_add_rack, plan_move_rack, plan_new_document, plan_remove_cable,
-    plan_remove_device, plan_remove_model, plan_remove_port, plan_remove_rack, plan_rename_cable,
-    plan_rename_device, plan_rename_document, plan_rename_model, plan_rename_port,
-    plan_rename_rack, plan_save_model, plan_set_cable_color, plan_set_device_color,
-    plan_set_device_height, plan_set_port_gender, plan_set_port_kind, plan_set_rack_height,
-    plan_update_model,
+    CatalogPlan, ObjectId, Plan, Rejection, merge_catalog, plan_add_rack, plan_move_rack,
+    plan_new_document, plan_remove_cable, plan_remove_device, plan_remove_model, plan_remove_port,
+    plan_remove_rack, plan_rename_cable, plan_rename_device, plan_rename_document,
+    plan_rename_model, plan_rename_port, plan_rename_rack, plan_replace_catalog, plan_save_model,
+    plan_set_cable_color, plan_set_device_color, plan_set_device_height, plan_set_port_gender,
+    plan_set_port_kind, plan_set_rack_height, plan_update_model,
 };
 use rackwright_core::editor::Editor;
-use rackwright_core::file_format::{from_json, to_json};
+use rackwright_core::file_format::{catalog_from_json, catalog_to_json, load_station, to_json};
 use rackwright_core::ids::{CableId, DeviceId, ModelId, PortId, RackId};
 use rackwright_core::limits::Limits;
-use rackwright_core::model::{Document, Gender, PortKind, Rgb};
+use rackwright_core::model::{Catalog, Document, Gender, PortKind, Rgb};
 use rackwright_render::camera::OrbitCamera;
 use rackwright_render::layout::{object_bounds, scene_bounds};
 use rackwright_render::pick::Ray;
@@ -36,12 +37,23 @@ pub enum DeleteOutcome {
     NeedsConfirmation,
 }
 
+/// The two things kept between sessions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StoredItem {
+    Document,
+    Catalog,
+}
+
 /// Stored data that could not be loaded at startup (spec §5 "Startup").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StartupProblem {
+    pub item: StoredItem,
     pub raw: String,
     pub reason: String,
 }
+
+/// The file name Export catalogue offers.
+pub const CATALOG_FILE_NAME: &str = "catalogue.json";
 
 pub struct Session {
     pub limits: Limits,
@@ -59,19 +71,19 @@ pub struct Session {
     revision: u64,
     ui_revision: u64,
     banner: Option<String>,
-    startup_problem: Option<StartupProblem>,
+    startup_problems: Vec<StartupProblem>,
 }
 
 impl Session {
     /// `viewport` is the canvas size in CSS pixels.
-    pub fn new(document: Document, limits: Limits, viewport: Vec2) -> Session {
+    pub fn new(document: Document, catalog: Catalog, limits: Limits, viewport: Vec2) -> Session {
         let viewport = viewport.max(Vec2::ONE);
         let camera = OrbitCamera::front_view(&scene_bounds(&document), viewport.x / viewport.y);
         let mut view = ViewState::new(camera);
         view.motion.snap(&animation_targets(&document, &limits));
         Session {
             limits,
-            editor: Editor::new(document),
+            editor: Editor::new(document, catalog),
             selection: None,
             view,
             viewport,
@@ -85,13 +97,18 @@ impl Session {
             revision: 0,
             ui_revision: 0,
             banner: None,
-            startup_problem: None,
+            startup_problems: Vec::new(),
         }
     }
 
     /// The committed document (what the tree, properties and autosave show).
     pub fn document(&self) -> &Document {
         self.editor.document()
+    }
+
+    /// The equipment catalogue (kept apart from the document).
+    pub fn catalog(&self) -> &Catalog {
+        self.editor.catalog()
     }
 
     /// What the 3D view shows: a drag preview's document, or the committed one.
@@ -105,7 +122,7 @@ impl Session {
         self.selection
     }
 
-    /// Changes whenever the committed document changes (drives autosave).
+    /// Changes whenever the committed document or catalogue changes (drives autosave).
     pub fn revision(&self) -> u64 {
         self.revision
     }
@@ -197,6 +214,22 @@ impl Session {
         Ok(())
     }
 
+    /// Commits a catalogue edit and selects what it touched.
+    fn commit_catalog(&mut self, plan: CatalogPlan) {
+        let subject = plan.subject;
+        self.editor.commit_catalog(plan);
+        if let Some(subject) = subject {
+            self.selection = Some(subject);
+        }
+        self.document_changed();
+    }
+
+    fn apply_catalog(&mut self, result: Result<CatalogPlan, Rejection>) -> Result<(), String> {
+        let plan = result.map_err(|r| capitalise(&r.to_string()))?;
+        self.commit_catalog(plan);
+        Ok(())
+    }
+
     fn document_changed(&mut self) {
         if let Some(sel) = self.selection
             && !exists(self.editor.document(), sel)
@@ -268,14 +301,20 @@ impl Session {
     ) -> Result<(), String> {
         let manufacturer = parse_model_text(manufacturer)?;
         let model = parse_model_text(model)?;
-        let result = plan_save_model(self.editor.document(), device, manufacturer, model);
-        self.apply(result)
+        let result = plan_save_model(
+            self.editor.document(),
+            self.editor.catalog(),
+            device,
+            manufacturer,
+            model,
+        );
+        self.apply_catalog(result)
     }
 
     /// "Update model from this device".
     pub fn update_model(&mut self, device: DeviceId) -> Result<(), String> {
-        let result = plan_update_model(self.editor.document(), device);
-        self.apply(result)
+        let result = plan_update_model(self.editor.document(), self.editor.catalog(), device);
+        self.apply_catalog(result)
     }
 
     pub fn rename_model(
@@ -286,13 +325,19 @@ impl Session {
     ) -> Result<(), String> {
         let manufacturer = parse_model_text(manufacturer)?;
         let model = parse_model_text(model)?;
-        let result = plan_rename_model(self.editor.document(), id, manufacturer, model);
-        self.apply(result)
+        let result = plan_rename_model(
+            self.editor.document(),
+            self.editor.catalog(),
+            id,
+            manufacturer,
+            model,
+        );
+        self.apply_catalog(result)
     }
 
     pub fn remove_model(&mut self, id: ModelId) {
-        let result = plan_remove_model(self.editor.document(), id);
-        let _ = self.apply(result);
+        let result = plan_remove_model(self.editor.document(), self.editor.catalog(), id);
+        let _ = self.apply_catalog(result);
     }
 
     pub fn set_port_kind(&mut self, port: PortId, kind: PortKind) {
@@ -345,24 +390,32 @@ impl Session {
         self.reset_view(now_s);
     }
 
-    /// Replaces the document with the example station (undoable); called after confirmation.
+    /// Replaces the document with the example station and merges its models into the
+    /// catalogue (one undoable step); called after confirmation.
     pub fn load_example(&mut self, now_s: f64) {
-        let plan = Plan {
-            document: rackwright_core::example::example_document(&self.limits),
-            subject: None,
-        };
+        let (example, models) = rackwright_core::example::example_station(&self.limits);
+        let (catalog, document) = merge_catalog(self.editor.catalog(), &models, &example);
         self.selection = None;
-        self.commit(plan);
+        self.commit_catalog(CatalogPlan {
+            document,
+            catalog,
+            subject: None,
+        });
         self.view
             .motion
             .snap(&animation_targets(self.editor.document(), &self.limits));
         self.reset_view(now_s);
     }
 
-    /// Replaces the document with an imported file; clears history (spec §5 "Import").
+    /// Replaces the document with an imported station file; clears history (spec §5
+    /// "Import"). The catalogue an older file embedded is merged into the catalogue.
     pub fn import(&mut self, text: &str, now_s: f64) -> Result<(), String> {
-        let document = from_json(text, &self.limits).map_err(|e| e.to_string())?;
-        self.editor.replace_clearing_history(document);
+        let loaded = load_station(text, &self.limits).map_err(|e| e.to_string())?;
+        let (catalog, document) = match &loaded.legacy_catalog {
+            Some(legacy) => merge_catalog(self.editor.catalog(), legacy, &loaded.document),
+            None => (self.editor.catalog().clone(), loaded.document),
+        };
+        self.editor.replace_clearing_history(document, catalog);
         self.selection = None;
         self.view
             .motion
@@ -372,15 +425,37 @@ impl Session {
         Ok(())
     }
 
+    /// Replaces the catalogue with an imported catalogue file (undoable); called after
+    /// confirmation. Linked devices are kept, relinked or made ad hoc (`plan_replace_catalog`).
+    pub fn import_catalog(&mut self, text: &str) -> Result<(), String> {
+        let incoming = catalog_from_json(text, &self.limits).map_err(|e| e.to_string())?;
+        let plan = plan_replace_catalog(self.editor.document(), self.editor.catalog(), incoming);
+        self.commit_catalog(plan);
+        Ok(())
+    }
+
     /// `(file name, JSON)` for Export.
     pub fn export(&self) -> (String, String) {
         let doc = self.editor.document();
         (export_file_name(doc), to_json(doc))
     }
 
-    /// What autosave writes.
+    /// `(file name, JSON)` for Export catalogue.
+    pub fn export_catalog(&self) -> (String, String) {
+        (
+            CATALOG_FILE_NAME.to_string(),
+            catalog_to_json(self.editor.catalog()),
+        )
+    }
+
+    /// What autosave writes for the document.
     pub fn save_payload(&self) -> String {
         to_json(self.editor.document())
+    }
+
+    /// What autosave writes for the catalogue.
+    pub fn catalog_payload(&self) -> String {
+        catalog_to_json(self.editor.catalog())
     }
 
     pub fn banner(&self) -> Option<&str> {
@@ -394,18 +469,28 @@ impl Session {
         }
     }
 
+    /// The startup problem to show, if any.
     pub fn startup_problem(&self) -> Option<&StartupProblem> {
-        self.startup_problem.as_ref()
+        self.startup_problems.first()
     }
 
-    /// While a startup problem is open, autosave must not overwrite the stored data.
-    pub fn autosave_allowed(&self) -> bool {
-        self.startup_problem.is_none()
+    /// While a startup problem about `item` is open, autosave must not overwrite its stored
+    /// data.
+    pub fn autosave_allowed(&self, item: StoredItem) -> bool {
+        self.startup_problems.iter().all(|p| p.item != item)
     }
 
-    pub fn set_startup_problem(&mut self, problem: Option<StartupProblem>) {
-        self.startup_problem = problem;
+    pub fn add_startup_problem(&mut self, problem: StartupProblem) {
+        self.startup_problems.push(problem);
         self.ui_revision += 1;
+    }
+
+    /// The user chose to start afresh: the shown problem's item may be overwritten again.
+    pub fn dismiss_startup_problem(&mut self) {
+        if !self.startup_problems.is_empty() {
+            self.startup_problems.remove(0);
+            self.ui_revision += 1;
+        }
     }
 
     /// Tweens the camera to fit `id` (tree double-click).

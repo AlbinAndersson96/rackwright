@@ -3,7 +3,7 @@ mod common;
 use common::*;
 use rackwright_core::edit::*;
 use rackwright_core::file_format::{from_json, to_json};
-use rackwright_core::model::{Document, Gender, PortKind};
+use rackwright_core::model::{Catalog, Document, Gender, PortKind};
 use rackwright_core::name::ModelText;
 use rackwright_core::port_grid::{Cell, PushDir};
 
@@ -87,16 +87,17 @@ fn catalogue_entries_keep_genders() {
         .unwrap()
         .document;
     let device = d.racks[0].devices[0].id;
-    let d = plan_save_model(
+    let plan = plan_save_model(
         &d,
+        &Catalog::default(),
         device,
         ModelText::parse("").unwrap(),
         ModelText::parse("Box").unwrap(),
     )
-    .unwrap()
-    .document;
-    assert_eq!(d.catalog[0].ports[0].gender, Gender::Female);
-    let model = d.catalog[0].id;
+    .unwrap();
+    let (d, catalog) = (plan.document, plan.catalog);
+    assert_eq!(catalog.entries[0].ports[0].gender, Gender::Female);
+    let model = catalog.entries[0].clone();
     let rack = d.racks[0].id;
     let d = plan_device_drop(&d, &limits(), &DeviceSource::Model(model), rack, 10)
         .unwrap()
@@ -116,7 +117,7 @@ fn genders_survive_files_and_default_when_missing() {
         .unwrap()
         .document;
     let json = to_json(&d);
-    assert!(json.starts_with("{\n  \"format_version\": 5,"), "{json}");
+    assert!(json.starts_with("{\n  \"format_version\": 6,"), "{json}");
     assert!(json.contains("\"gender\": \"other\""), "{json}");
     assert_eq!(from_json(&json, &limits()), Ok(d.clone()));
 

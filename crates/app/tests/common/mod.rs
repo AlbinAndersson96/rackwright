@@ -4,7 +4,9 @@ use glam::{Vec2, Vec3};
 use rackwright_app::session::Session;
 use rackwright_core::ids::{CableId, DeviceId, PortId, RackId};
 use rackwright_core::limits::Limits;
-use rackwright_core::model::{Cable, Device, DeviceKind, Document, Port, PortKind, Rack, Rgb};
+use rackwright_core::model::{
+    Cable, Catalog, Device, DeviceKind, Document, Port, PortKind, Rack, Rgb,
+};
 use rackwright_core::name::{DocumentName, Name};
 
 pub const VIEWPORT: Vec2 = Vec2::new(800.0, 600.0);
@@ -59,13 +61,16 @@ pub fn doc(racks: Vec<Rack>) -> Document {
         name: DocumentName::parse("Test").unwrap(),
         racks,
         cables: Vec::new(),
-        catalog: Vec::new(),
     }
 }
 
-/// A session on `d` whose camera has finished any tween.
+/// A session on `d`, with an empty catalogue, whose camera has finished any tween.
 pub fn session(d: Document) -> Session {
-    let mut s = Session::new(d, limits(), VIEWPORT);
+    session_with(d, Catalog::default())
+}
+
+pub fn session_with(d: Document, c: Catalog) -> Session {
+    let mut s = Session::new(d, c, limits(), VIEWPORT);
     s.advance(0.0);
     s
 }

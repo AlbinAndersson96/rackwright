@@ -245,16 +245,37 @@ fn the_example_can_be_loaded_and_undone() {
     assert_eq!(s.document().name.as_str(), "Example Station");
     assert_eq!(s.selection(), None);
     assert_eq!(s.revision(), 1);
+    let models = s.catalog().entries.len();
+    assert!(models >= 4);
     s.undo();
     assert_eq!(s.document(), &before);
+    assert!(s.catalog().entries.is_empty());
+    s.redo();
+
+    // Opening it again reuses the models already in the catalogue.
+    let first = s.catalog().clone();
+    s.load_example(0.0);
+    assert_eq!(s.catalog().entries.len(), models);
+    assert!(
+        s.document()
+            .racks
+            .iter()
+            .flat_map(|r| &r.devices)
+            .all(|d| match d.kind {
+                rackwright_core::model::DeviceKind::Model(m) => first.model(m).is_some(),
+                rackwright_core::model::DeviceKind::AdHoc => true,
+            })
+    );
 }
 
 #[test]
 fn a_new_document_is_still_empty() {
-    let mut s = session(rackwright_core::example::example_document(&limits()));
+    let (example, models) = rackwright_core::example::example_station(&limits());
+    let mut s = session_with(example, models.clone());
     s.new_document(0.0);
     let d = s.document();
     assert_eq!(d.name.as_str(), "Station1");
     assert_eq!(d.racks.len(), 1);
-    assert!(d.racks[0].devices.is_empty() && d.cables.is_empty() && d.catalog.is_empty());
+    assert!(d.racks[0].devices.is_empty() && d.cables.is_empty());
+    assert_eq!(s.catalog(), &models, "the catalogue is kept");
 }

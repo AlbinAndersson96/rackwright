@@ -166,7 +166,6 @@ fn largest_document_fits_the_front_view() {
         name: DocumentName::parse("Big").unwrap(),
         racks,
         cables: vec![],
-        catalog: vec![],
     };
     let b = scene_bounds(&doc);
     let c = OrbitCamera::front_view(&b, 16.0 / 9.0);

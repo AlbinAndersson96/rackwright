@@ -1419,6 +1419,7 @@ dependencies = [
  "pollster",
  "rackwright-core",
  "rackwright-render",
+ "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",

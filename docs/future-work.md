@@ -12,17 +12,20 @@ needs its own design (spec, then plan) before implementation.
 
 ### Equipment catalogue
 
-**Done.** See `docs/superpowers/specs/2026-10-08-equipment-catalogue-design.md`.
+**Done.** See `docs/superpowers/specs/2026-10-08-equipment-catalogue-design.md` and
+`docs/superpowers/specs/2026-10-12-separate-catalogue-design.md`.
 
 - **What exists:**
-  - Each document carries a catalogue of models (manufacturer, model, height, colour and
-    default ports).
+  - One catalogue of models (manufacturer, model, height, colour and default ports), kept
+    apart from the station document. It is autosaved under its own key and exported and
+    imported as its own file (Import replaces it).
   - "Save as model" makes an entry from a device. Dragging an entry into a rack places a copy
     linked to its model (`DeviceKind::Model`).
   - Changing an entry never changes devices already placed.
 - **Still open:**
   - front-panel images;
-  - a catalogue shared across documents (via the backend);
+  - a catalogue shared by the whole team (via the backend);
+  - merging on Import catalogue, and several catalogues;
   - live links that push entry changes into placed devices;
   - a dedicated port-layout editor for entries.
 
@@ -70,7 +73,8 @@ storage.
   the document's JSON text. Startup recovery (`interpret_stored`) and autosave (`autosave`)
   already go through it.
 - **Things the MVP does not handle yet:**
-  - **More than one document:** local storage holds exactly one (`STORAGE_KEY`).
+  - **More than one document:** local storage holds exactly one (`STORAGE_KEY`), next to the
+    catalogue (`CATALOG_STORAGE_KEY`). Each goes through its own `DocumentStore`.
   - **Concurrent editing:** the MVP's rule is "last write wins", even between two tabs.
   - **Authentication.**
 - **Also relevant:** IDs are UUIDs, so documents created in different browsers can be merged
@@ -117,9 +121,10 @@ If a browser and driver become available (for example in CI), headless tests for
 
 ## File format changes
 
-Any model change that affects saved files needs these three steps:
+Station files (`FORMAT_VERSION`) and catalogue files (`CATALOG_FORMAT_VERSION`) are versioned
+separately. Any model change that affects saved files needs these three steps:
 
-- Bump `FORMAT_VERSION` in `crates/core/src/file_format.rs`.
+- Bump the matching version in `crates/core/src/file_format.rs`.
 - Add a step to `migrate` that upgrades the previous version's JSON.
 - Keep the on-disk `File*` types separate from the model.
 

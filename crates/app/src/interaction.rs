@@ -382,10 +382,14 @@ impl Session {
                         (DeviceSource::Existing(*d), device.height_u, device.color)
                     }
                     DragSource::Model(m) => {
-                        let Some(entry) = doc.model(*m) else {
+                        let Some(entry) = self.catalog().model(*m) else {
                             return;
                         };
-                        (DeviceSource::Model(*m), entry.height_u, entry.color)
+                        (
+                            DeviceSource::Model(entry.clone()),
+                            entry.height_u,
+                            entry.color,
+                        )
                     }
                     _ => unreachable!(),
                 };

@@ -1,5 +1,6 @@
-//! Versioned JSON file format (spec §4.1, §5). The `File*` types are the on-disk shape and
-//! are kept separate from the in-memory model so the model can change without breaking files.
+//! Versioned JSON file formats (spec §4.1, §5): station files and catalogue files, each with
+//! its own version. The `File*` types are the on-disk shape and are kept separate from the
+//! in-memory model so the model can change without breaking files.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -8,12 +9,20 @@ use uuid::Uuid;
 use crate::ids::{CableId, DeviceId, ModelId, PortId, RackId};
 use crate::limits::Limits;
 use crate::model::{
-    Cable, CatalogEntry, Device, DeviceKind, Document, Gender, ModelPort, Port, PortKind, Rack, Rgb,
+    Cable, Catalog, CatalogEntry, Device, DeviceKind, Document, Gender, ModelPort, Port, PortKind,
+    Rack, Rgb,
 };
 use crate::name::{DocumentName, ModelText, Name};
-use crate::validate::{ValidationError, validate};
+use crate::validate::{ValidationError, validate, validate_catalog};
 
-pub const FORMAT_VERSION: u64 = 5;
+/// The station file version.
+pub const FORMAT_VERSION: u64 = 6;
+
+/// The catalogue file version (independent of `FORMAT_VERSION`).
+pub const CATALOG_FORMAT_VERSION: u64 = 1;
+
+/// The `kind` that marks a catalogue file.
+pub const CATALOG_KIND: &str = "rackwright-catalog";
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LoadError {
@@ -31,8 +40,22 @@ pub enum LoadError {
     InvalidColor(String),
     #[error("Invalid catalogue text '{text}': {reason}")]
     InvalidModelText { text: String, reason: String },
+    #[error("This is a catalogue file. Use Import in the Catalogue panel.")]
+    CatalogFile,
+    #[error("This is a station file, not a catalogue.")]
+    StationFile,
+    #[error("The file is not a catalogue.")]
+    NotCatalog,
     #[error(transparent)]
     Invalid(#[from] ValidationError),
+}
+
+/// A loaded station file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadedStation {
+    pub document: Document,
+    /// The catalogue that format versions 4 and 5 embedded in the station, if the file had one.
+    pub legacy_catalog: Option<Catalog>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -41,7 +64,13 @@ struct FileDocument {
     name: String,
     racks: Vec<FileRack>,
     cables: Vec<FileCable>,
-    catalog: Vec<FileCatalogEntry>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct FileCatalog {
+    kind: String,
+    format_version: u64,
+    entries: Vec<FileCatalogEntry>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -148,29 +177,110 @@ pub fn to_json(doc: &Document) -> String {
         name: doc.name.as_str().to_owned(),
         racks: doc.racks.iter().map(rack_to_file).collect(),
         cables: doc.cables.iter().map(cable_to_file).collect(),
-        catalog: doc.catalog.iter().map(entry_to_file).collect(),
     };
     serde_json::to_string_pretty(&file).expect("serializing plain data cannot fail")
 }
 
+/// Loads a station file, discarding a legacy embedded catalogue (see `load_station`).
 pub fn from_json(text: &str, limits: &Limits) -> Result<Document, LoadError> {
-    let value: Value = serde_json::from_str(text).map_err(|e| LoadError::NotJson(e.to_string()))?;
-    let version = value
-        .get("format_version")
-        .and_then(Value::as_u64)
-        .ok_or(LoadError::MissingVersion)?;
+    load_station(text, limits).map(|loaded| loaded.document)
+}
+
+/// Loads a station file, returning the catalogue an older file embedded alongside it.
+pub fn load_station(text: &str, limits: &Limits) -> Result<LoadedStation, LoadError> {
+    let mut value = parse(text)?;
+    if is_catalog(&value) {
+        return Err(LoadError::CatalogFile);
+    }
+    let version = version_of(&value)?;
     if version > FORMAT_VERSION {
         return Err(LoadError::TooNew { found: version });
     }
+    // Versions 4 and 5 embedded the catalogue; it now lives in its own file.
+    let legacy = match value.as_object_mut() {
+        Some(object) if (4..6).contains(&version) => object.remove("catalog"),
+        _ => None,
+    };
     let value = migrate(value, version)?;
     let file: FileDocument =
         serde_json::from_value(value).map_err(|e| LoadError::Malformed(e.to_string()))?;
-    let doc = document_from_file(file, limits)?;
-    validate(&doc, limits)?;
-    Ok(doc)
+    let document = document_from_file(file, limits)?;
+    validate(&document, limits)?;
+    let legacy_catalog = legacy
+        .map(|value| {
+            let entries: Vec<FileCatalogEntry> =
+                serde_json::from_value(value).map_err(|e| LoadError::Malformed(e.to_string()))?;
+            catalog_from_entries(entries, limits)
+        })
+        .transpose()?;
+    Ok(LoadedStation {
+        document,
+        legacy_catalog,
+    })
 }
 
-/// Upgrades older format versions step by step to `FORMAT_VERSION`.
+pub fn catalog_to_json(catalog: &Catalog) -> String {
+    let file = FileCatalog {
+        kind: CATALOG_KIND.to_owned(),
+        format_version: CATALOG_FORMAT_VERSION,
+        entries: catalog.entries.iter().map(entry_to_file).collect(),
+    };
+    serde_json::to_string_pretty(&file).expect("serializing plain data cannot fail")
+}
+
+pub fn catalog_from_json(text: &str, limits: &Limits) -> Result<Catalog, LoadError> {
+    let value = parse(text)?;
+    if !is_catalog(&value) {
+        return Err(if value.get("racks").is_some() {
+            LoadError::StationFile
+        } else {
+            LoadError::NotCatalog
+        });
+    }
+    let version = version_of(&value)?;
+    if version > CATALOG_FORMAT_VERSION {
+        return Err(LoadError::TooNew { found: version });
+    }
+    if version != 1 {
+        return Err(LoadError::Malformed(format!(
+            "unsupported catalogue version {version}"
+        )));
+    }
+    let file: FileCatalog =
+        serde_json::from_value(value).map_err(|e| LoadError::Malformed(e.to_string()))?;
+    catalog_from_entries(file.entries, limits)
+}
+
+fn catalog_from_entries(
+    entries: Vec<FileCatalogEntry>,
+    limits: &Limits,
+) -> Result<Catalog, LoadError> {
+    let catalog = Catalog {
+        entries: entries
+            .into_iter()
+            .map(|e| entry_from_file(e, limits))
+            .collect::<Result<Vec<_>, _>>()?,
+    };
+    validate_catalog(&catalog, limits)?;
+    Ok(catalog)
+}
+
+fn parse(text: &str) -> Result<Value, LoadError> {
+    serde_json::from_str(text).map_err(|e| LoadError::NotJson(e.to_string()))
+}
+
+fn version_of(value: &Value) -> Result<u64, LoadError> {
+    value
+        .get("format_version")
+        .and_then(Value::as_u64)
+        .ok_or(LoadError::MissingVersion)
+}
+
+fn is_catalog(value: &Value) -> bool {
+    value.get("kind").and_then(Value::as_str) == Some(CATALOG_KIND)
+}
+
+/// Upgrades older station versions step by step to `FORMAT_VERSION`.
 fn migrate(mut value: Value, version: u64) -> Result<Value, LoadError> {
     match version {
         // Version 2 added cables.
@@ -182,16 +292,18 @@ fn migrate(mut value: Value, version: u64) -> Result<Value, LoadError> {
         }
         // Version 3 added port types; the shape is unchanged.
         2 => migrate(value, 3),
-        // Version 4 added the equipment catalogue.
-        3 => {
-            if let Some(object) = value.as_object_mut() {
-                object.insert("catalog".into(), Value::Array(Vec::new()));
-            }
-            migrate(value, 4)
-        }
+        // Version 4 added the embedded catalogue (`load_station` takes it out before this).
+        3 => migrate(value, 4),
         // Version 5 added port genders; a missing gender reads as unspecified.
         4 => migrate(value, 5),
-        5 => Ok(value),
+        // Version 6 moved the catalogue to its own file.
+        5 => {
+            if let Some(object) = value.as_object_mut() {
+                object.remove("catalog");
+            }
+            migrate(value, 6)
+        }
+        6 => Ok(value),
         other => Err(LoadError::Malformed(format!(
             "unsupported format version {other}"
         ))),
@@ -264,16 +376,10 @@ fn document_from_file(file: FileDocument, limits: &Limits) -> Result<Document, L
         .into_iter()
         .map(|c| cable_from_file(c, limits))
         .collect::<Result<Vec<_>, _>>()?;
-    let catalog = file
-        .catalog
-        .into_iter()
-        .map(|e| entry_from_file(e, limits))
-        .collect::<Result<Vec<_>, _>>()?;
     Ok(Document {
         name,
         racks,
         cables,
-        catalog,
     })
 }
 

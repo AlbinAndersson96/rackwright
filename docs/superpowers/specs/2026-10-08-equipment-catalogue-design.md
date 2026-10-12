@@ -1,7 +1,9 @@
 # TestStationView — Equipment Catalogue
 
 Date: 2026-10-08
-Status: Accepted (decisions taken with the user in the design discussion)
+Status: Accepted (decisions taken with the user in the design discussion). Revised by
+`2026-10-12-separate-catalogue-design.md`: the catalogue now lives in its own file, not in each
+document.
 
 This extends the MVP design, the cables design and the port types design. It answers
 `docs/future-work.md` § "Equipment catalogue".
